@@ -74,4 +74,5 @@ docs/_build
 .mypy_cache/
 
 # C++ backend handled by other repos
-backend/
+backend/cnine
+backend/GElib
