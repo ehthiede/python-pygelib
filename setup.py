@@ -51,7 +51,14 @@ def get_extensions(extensions_dir, extension_name):
 
     sources = [join(extensions_dir, s) for s in sources]
 
-    include_dirs = [extensions_dir]
+    print(extensions_dir)
+    include_dirs = [extensions_dir,
+                    'backend/GElib/v2/include',
+                    'backend/GElib/v2/objects/SO3',
+                    'backend/cnine/v1/include',
+                    'backend/cnine/v1/objects/scalar',
+                    'backend/cnine/v1/objects/tensor'
+                    ]
 
     ext_modules = [
         extension(
