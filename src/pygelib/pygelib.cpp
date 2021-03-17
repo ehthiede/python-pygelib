@@ -6,8 +6,9 @@
 /* #include "CnineSession.hpp" */
 
 #include "GElib_base.cpp"
-#include "SO3vecObj.hpp"
-#include "SO3vecObj_funs.hpp"
+/* #include "SO3vecObj.hpp" */
+/* #include "SO3vecObj_funs.hpp" */
+#include "SO3vec.hpp"
 #include "SO3part.hpp"
 
 /* #include <pybind11/stl_bind.h> */
@@ -49,28 +50,28 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     .def(pybind11::init<initializer_list<int> >())
     .def("str",&SO3type::str);
 
-  pybind11::class_<SO3vecObj>(m,"_SO3vec")
+  pybind11::class_<SO3vec>(m,"_SO3vec")
     .def(pybind11::init<const SO3type&, const fill_zero&>())
     .def(pybind11::init<const SO3type&, const fill_gaussian&>())
     .def(pybind11::init<const SO3type&, const fill_sequential&>())
-    .def("str",&SO3vecObj::str);
+    .def("str",&SO3vec::str);
 
-  pybind11::class_<SO3partObj>(m,"_SO3part")
-    .def(pybind11::init<int, int, const fill_zero&>())
-    .def(pybind11::init<int, int, const fill_gaussian&>())
-    .def(pybind11::init<int, int, const fill_sequential&>())
-    .def("str",&SO3partObj::str)
-    .def("get",&SO3partObj::get)
-    .def("spharm",&SO3partObj::spharm)
-    .def("rotate",&SO3partObj::rotate)
-    .def("set",&SO3partObj::set_value)
-    .def("add", &SO3partObj::add_temp);
+  /* pybind11::class_<SO3part>(m,"_SO3part") */
+  /*   .def(pybind11::init<int, int, const fill_zero&>()) */
+  /*   .def(pybind11::init<int, int, const fill_gaussian&>()) */
+  /*   .def(pybind11::init<int, int, const fill_sequential&>()) */
+  /*   .def("str",&SO3part::str) */
+  /*   .def("get",&SO3part::get) */
+  /*   .def("spharm",&SO3part::spharm) */
+  /*   .def("rotate",&SO3part::rotate) */
+  /*   .def("set",&SO3part::set_value) */
+  /*   .def("add", &SO3part::add_temp); */
 
-  pybind11::class_<SO3vecObj>(m,"_SO3vec")
-    .def(pybind11::init<const SO3type&, const fill_zero&>())
-    .def(pybind11::init<const SO3type&, const fill_gaussian&>())
-    .def(pybind11::init<const SO3type&, const fill_sequential&>())
-    .def("str",&SO3vecObj::str);
+  /* pybind11::class_<SO3vec>(m,"_SO3vec") */
+  /*   .def(pybind11::init<const SO3type&, const fill_zero&>()) */
+  /*   .def(pybind11::init<const SO3type&, const fill_gaussian&>()) */
+  /*   .def(pybind11::init<const SO3type&, const fill_sequential&>()) */
+  /*   .def("str",&SO3vec::str); */
 
   // Functions on SO3parts
   /* m.def("_spharm", &spharm, "Convert Cartesian tensor to spherical harmonics"); */
