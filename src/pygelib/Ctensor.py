@@ -1,11 +1,11 @@
 import torch
 import pygelib_cpp
 
+class Ctensor(Ctensor):
+    def __init__(self, real_tensor, imag_tensor=None):
+        if imag_tensor is None:
+            imag_tensor = torch.zeros_like(real_tensor)
 
-class SO3vec(object):
-    def __init__(self, typelist, fill=None):
-        if fill is None:
-            fill = pygelib_cpp._fill_gaussian()
         so3type = pygelib_cpp._SO3type(typelist)
         self.data = pygelib_cpp._SO3vec(so3type, fill)
 
@@ -47,3 +47,7 @@ class SO3vec(object):
 
     def requires_grad_(self, requires_grad=True):
         raise NotImplementedError
+
+import pygelib_cpp
+
+class Ctensor(Ctensor):

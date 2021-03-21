@@ -1,8 +1,9 @@
 import torch
 import pygelib_cpp
+from Ctensor import Ctensor
 
 
-class SO3vec(object):
+class SO3part(Ctensor):
     def __init__(self, typelist, fill=None):
         if fill is None:
             fill = pygelib_cpp._fill_gaussian()
@@ -47,3 +48,4 @@ class SO3vec(object):
 
     def requires_grad_(self, requires_grad=True):
         raise NotImplementedError
+
