@@ -34,5 +34,22 @@ Ctensor CtensorFromTensor(const torch::Tensor& x_real, const torch::Tensor& x_im
 /*     is_view=true; */
 }
 
+void iadd_ctensor(CtensorObj& x, CtensorObj& y){
+    // Adds ctensor y to ctensor x, changes in place.
+    x += y;
+}
 
+CtensorObj add_ctensor(CtensorObj& x, CtensorObj& y){
+    // returns x and y, doesn't make in-place changes.
+    return x + y;
+}
 
+void isubtract_ctensor(CtensorObj& x, CtensorObj& y){
+    // Adds ctensor y to ctensor x, changes in place.
+    x -= y;
+}
+
+CtensorObj subtract_ctensor(CtensorObj& x, CtensorObj& y){
+    // returns x and y, doesn't make in-place changes.
+    return x - y;
+}

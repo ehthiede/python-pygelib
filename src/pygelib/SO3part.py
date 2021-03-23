@@ -4,11 +4,12 @@ from Ctensor import Ctensor
 
 
 class SO3part(Ctensor):
-    def __init__(self, typelist, fill=None):
-        if fill is None:
-            fill = pygelib_cpp._fill_gaussian()
-        so3type = pygelib_cpp._SO3type(typelist)
-        self.data = pygelib_cpp._SO3vec(so3type, fill)
+    def __init__(self, real_tensor, imag_tensor=None):
+        if imag_tensor is None:
+            imag_tensor = torch.zeros_like(real_tensor)
+        self._Ctensor = pygelib_cpp._construct_SO3part_from_Tensor(real_tensor, imag_tensor)
+        self.real_tensor = real_tensor
+        self.imag_tensor = imag_tensor
 
     def __len__(self):
         raise NotImplementedError

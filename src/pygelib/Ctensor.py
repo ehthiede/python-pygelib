@@ -1,13 +1,14 @@
 import torch
 import pygelib_cpp
 
-class Ctensor(Ctensor):
+
+class Ctensor(object):
     def __init__(self, real_tensor, imag_tensor=None):
         if imag_tensor is None:
             imag_tensor = torch.zeros_like(real_tensor)
-
-        so3type = pygelib_cpp._SO3type(typelist)
-        self.data = pygelib_cpp._SO3vec(so3type, fill)
+        self._Ctensor = pygelib_cpp._construct_Ctensor_from_Tensor(real_tensor, imag_tensor)
+        self.real_tensor = real_tensor
+        self.imag_tensor = imag_tensor
 
     def __len__(self):
         raise NotImplementedError
@@ -25,6 +26,9 @@ class Ctensor(Ctensor):
         raise NotImplementedError
 
     __radd__ = __add__
+
+    def __iadd__(self, other):
+        raise NotImplementedError
 
     def __sub__(self, other):
         raise NotImplementedError
@@ -47,7 +51,3 @@ class Ctensor(Ctensor):
 
     def requires_grad_(self, requires_grad=True):
         raise NotImplementedError
-
-import pygelib_cpp
-
-class Ctensor(Ctensor):
