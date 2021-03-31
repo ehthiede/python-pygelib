@@ -1,5 +1,5 @@
 import torch
-from numbers import Number
+import operator
 
 
 class SO3TensorArray(object):
@@ -191,10 +191,35 @@ class SO3TensorArray(object):
         """
         Add element wise `torch.Tensors`
         """
+        op = operator.mul
         if isinstance(other, SO3TensorArray):
-            return multiply_SO3TensorArrays(self, other)
+            return _multiply_SO3TensorArrays(self, other, op)
         else:
-            return multiply_SO3TensorArray_by_scalar(self, other)
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _multiply_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _multiply_SO3TensorArray_by_real_scalar(self, other, op)
+
+    def __matmul__(self, other):
+        """
+        Add element wise `torch.Tensors`
+        """
+        op = operator.matmul
+        if isinstance(other, SO3TensorArray):
+            return _multiply_SO3TensorArrays(self, other, op)
+        else:
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _multiply_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _multiply_SO3TensorArray_by_real_scalar(self, other, op)
 
     # __rmul__ = __mul__
 
@@ -202,53 +227,87 @@ class SO3TensorArray(object):
         """
         Add element wise `torch.Tensors`
         """
+        op = operator.add
         if isinstance(other, SO3TensorArray):
-            return add_SO3TensorArrays(self, other)
+            return _add_SO3TensorArrays(self, other, op)
         else:
-            return add_SO3TensorArray_by_scalar(self, other)
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _add_SO3TensorArray_by_real_scalar(self, other, op)
 
     def __sub__(self, other):
         """
         Add element wise `torch.Tensors`
         """
+        op = operator.sub
         if isinstance(other, SO3TensorArray):
-            return add_SO3TensorArrays(self, other)
+            return _add_SO3TensorArrays(self, other, op)
         else:
-            raise Exception("Was unable to parse multiplied object.")
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _add_SO3TensorArray_by_real_scalar(self, other, op)
 
 
-def multiply_SO3TensorArrays(tensor_array_1, tensor_array_2):
+# Base Addition Routines
+def _add_SO3TensorArrays(tensor_array_1, tensor_array_2, op):
     output_class = type(tensor_array_1)
     output_parts = []
     for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
-        output_parts.append(torch.stack([t1_r*t2_r - t1_i*t2_i, t1_r*t2_i + t1_i*t2_r], dim=0))
+        output_parts.append(torch.stack([op(t1_r, t2_r), op(t1_i, t2_i)], dim=0))
     return output_class(output_parts)
 
 
-def add_SO3TensorArrays(tensor_array_1, tensor_array_2):
-    output_class = type(tensor_array_1)
-    output_parts = []
-    for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
-        output_parts.append(torch.stack([t1_r+t2_r, t1_i+t2_i], dim=0))
-    return output_class(output_parts)
-
-
-def multiply_SO3TensorArray_by_scalar(tensor_array, scalar):
-    output_class = type(tensor_array)
-    output_parts = []
-    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
-        output_parts.append(torch.stack([t_r*scalar.real - t_i*scalar.imag,
-                                         t_r*scalar.imag + t_i*scalar.real], dim=0))
-    return output_class(output_parts)
-
-
-def add_SO3TensorArray_by_scalar(tensor_array, scalar):
+def _add_SO3TensorArray_by_complex_scalar(tensor_array, scalar, op):
     output_class = type(tensor_array)
     output_parts = []
     for t_r, t_i, in zip(tensor_array.real, tensor_array.imag):
+        output_parts.append(torch.stack([op(t_r,scalar.real), op(t_i,scalar.imag)], dim=0))
+    return output_class(output_parts)
 
-        a = torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0)
-        b = torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0)
-        assert(torch.allclose(a, b))
-        output_parts.append(torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0))
+
+def _add_SO3TensorArray_by_real_scalar(tensor_array, scalar, op):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        output_parts.append(torch.stack([op(t_r, scalar),
+                                         t_i], dim=0))
+    return output_class(output_parts)
+
+
+# Base Multiplication Routines
+def _multiply_SO3TensorArrays(tensor_array_1, tensor_array_2, op):
+    output_class = type(tensor_array_1)
+    output_parts = []
+    for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
+        output_parts.append(torch.stack([op(t1_r, t2_r) - op(t1_i, t2_i),
+                                         op(t1_r, t2_i) + op(t1_i, t2_r)], dim=0))
+    return output_class(output_parts)
+
+
+def _multiply_SO3TensorArray_by_complex_scalar(tensor_array, scalar, op):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        output_parts.append(torch.stack([op(t_r, scalar.real) - op(t_i, scalar.imag),
+                                         op(t_r, scalar.imag) + op(t_i, scalar.real)], dim=0))
+    return output_class(output_parts)
+
+
+def _multiply_SO3TensorArray_by_real_scalar(tensor_array, scalar, op):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        product = op(t_r, scalar)
+        output_parts.append(torch.stack([product,
+                                         torch.zeros_like(product)], dim=0))
     return output_class(output_parts)
