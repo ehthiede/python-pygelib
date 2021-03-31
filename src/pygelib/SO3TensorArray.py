@@ -1,9 +1,8 @@
 import torch
-from abc import ABC
 from numbers import Number
 
 
-class SO3Base(ABC):
+class SO3TensorArray(object):
     """
     Base class for a collection of tensors, each of which is associated with a
     specific value of ell.
@@ -34,7 +33,7 @@ class SO3Base(ABC):
     def truncate(self, maxl):
         """
         Update the maximum ell by truncating parts of the
-        :class:`SO3Tensor` if they correspond to weights greater than `maxl`.
+        :class:`SO3TensorArray` if they correspond to weights greater than `maxl`.
 
         Parameters
         ----------
@@ -43,8 +42,8 @@ class SO3Base(ABC):
 
         Returns
         -------
-        :class:`SO3Base` subclass
-            Truncated :class:`SO3Base`
+        :class:`SO3TensorArray` subclass
+            Truncated :class:`SO3TensorArray`
         """
         return self[:maxl+1]
 
@@ -77,7 +76,7 @@ class SO3Base(ABC):
     @property
     def imag(self):
         output_class = type(self)
-        return output_class([i[0] for i in self._data])
+        return output_class([i[1] for i in self._data])
 
     def keys(self):
         return range(len(self))
@@ -192,10 +191,10 @@ class SO3Base(ABC):
         """
         Add element wise `torch.Tensors`
         """
-        if isinstance(other, SO3Base):
-            return multiply_SO3Class_w_ScalarArray(self, other)
+        if isinstance(other, SO3TensorArray):
+            return multiply_SO3TensorArrays(self, other)
         else:
-            raise Exception("Was unable to parse multiplied object.")
+            return multiply_SO3TensorArray_by_scalar(self, other)
 
     # __rmul__ = __mul__
 
@@ -203,70 +202,53 @@ class SO3Base(ABC):
         """
         Add element wise `torch.Tensors`
         """
-        if isinstance(other, SO3Base):
-            return add_SO3Class_w_ScalarArray(self, other)
+        if isinstance(other, SO3TensorArray):
+            return add_SO3TensorArrays(self, other)
         else:
-            raise Exception("Was unable to parse multiplied object.")
+            return add_SO3TensorArray_by_scalar(self, other)
 
     def __sub__(self, other):
         """
         Add element wise `torch.Tensors`
         """
-        if isinstance(other, SO3Base):
-            return add_SO3Class_w_ScalarArray(self, other)
+        if isinstance(other, SO3TensorArray):
+            return add_SO3TensorArrays(self, other)
         else:
             raise Exception("Was unable to parse multiplied object.")
 
 
-def multiply_SO3Class_w_ScalarArray(vec_array, scalar_array):
-    output_class = type(vec_array)
+def multiply_SO3TensorArrays(tensor_array_1, tensor_array_2):
+    output_class = type(tensor_array_1)
     output_parts = []
-    for vec_part, scalar_part in zip(vec_array, scalar_array):
-        scalar_r = scalar_part[0]
-        scalar_i = scalar_part[1]
-
-        vec_r = vec_part[0]
-        vec_i = vec_part[1]
-
-        output_parts.append(torch.stack([vec_r*scalar_r - vec_i*scalar_i, vec_r*scalar_i + vec_i*scalar_r], dim=0))
+    for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
+        output_parts.append(torch.stack([t1_r*t2_r - t1_i*t2_i, t1_r*t2_i + t1_i*t2_r], dim=0))
     return output_class(output_parts)
 
 
-def add_SO3Class_w_ScalarArray(vec_array, scalar_array):
-    output_class = type(vec_array)
+def add_SO3TensorArrays(tensor_array_1, tensor_array_2):
+    output_class = type(tensor_array_1)
     output_parts = []
-    for vec_part, scalar_part in zip(vec_array, scalar_array):
-        scalar_r = scalar_part[0]
-        scalar_i = scalar_part[1]
-
-        vec_r = vec_part[0]
-        vec_i = vec_part[1]
-
-        output_parts.append(torch.stack([vec_r+scalar_r, vec_i+scalar_i], dim=0))
+    for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
+        output_parts.append(torch.stack([t1_r+t2_r, t1_i+t2_i], dim=0))
     return output_class(output_parts)
 
-# def multiply_SO3Class_w_Scalar(vec_array, scalar, scalar_is_complex=True):
-#     output_class = type(vec_array)
-#     output_parts = []
 
-#     if scalar_is_complex:
-#         scalar_r = scalar[0]
-#         scalar_i = scalar[1]
-#     else:
-#         scalar_r = scalar
-#         scalar_i = 0
+def multiply_SO3TensorArray_by_scalar(tensor_array, scalar):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        output_parts.append(torch.stack([t_r*scalar.real - t_i*scalar.imag,
+                                         t_r*scalar.imag + t_i*scalar.real], dim=0))
+    return output_class(output_parts)
 
-#     for vec_part, scalar_part in zip(vec_array, scalar):
-#         vec_r = vec_part[0]
-#         vec_i = vec_part[1]
 
-#         real_part = vec_r*scalar_r
-#         if scalar_is_complex:
-#             real_part -= vec_i*scalar_i
+def add_SO3TensorArray_by_scalar(tensor_array, scalar):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i, in zip(tensor_array.real, tensor_array.imag):
 
-#         imag_part = vec_i*scalar_r
-#         if scalar_is_complex:
-#             imag_part += vec_r*scalar_i
-
-#         output_parts.append(torch.stack([real_part, imag_part], dim=0))
-#     return output_class(output_parts)
+        a = torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0)
+        b = torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0)
+        assert(torch.allclose(a, b))
+        output_parts.append(torch.stack([t_r+scalar.real, t_i+scalar.imag], dim=0))
+    return output_class(output_parts)
