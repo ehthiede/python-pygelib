@@ -7,8 +7,6 @@
 /* #include "CnineSession.hpp" */
 
 #include "GElib_base.cpp"
-/* #include "SO3vecObj.hpp" */
-/* #include "SO3vecObj_funs.hpp" */
 #include "SO3vec.hpp"
 #include "SO3element.hpp"
 #include "SO3partA.hpp"
@@ -16,16 +14,16 @@
 #include "CtensorObj.hpp"
 #include "CtensorA.hpp"
 #include "CscalarObj.hpp"
-
-/* #include <pybind11/stl_bind.h> */
+#include "SO3partArrayA.hpp"
+#include "SO3partArray.hpp"
 
 using namespace cnine;
 using namespace GElib;
-
 typedef CtensorObj Ctensor;
 
 #include "_SO3part.hpp"
 #include "_Ctensor.hpp"
+#include "_SO3partArray.hpp"
 
 
 //CGpowerOp CGpowerOpPy_init(vector< vector<at::Tensor> > x, const int k){
@@ -40,12 +38,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   pybind11::class_<fill_sequential>(m,"_fill_sequential")
     .def(pybind11::init<>());
 
-  // Generic Tensors
-  pybind11::class_<CscalarObj>(m,"_Cscalar")
-    .def(pybind11::init<const float&>())
-    .def(pybind11::init<const complex<float>&>())
-    .def("str",&CscalarObj::str)
-    ;
+  /* // Generic Tensors */
+  /* pybind11::class_<CscalarObj>(m,"_Cscalar") */
+  /*   .def(pybind11::init<const float&>()) */
+  /*   .def(pybind11::init<const complex<float>&>()) */
+  /*   .def("str",&CscalarObj::str) */
+  /*   ; */
 
   pybind11::class_<CtensorObj>(m,"_Ctensor")
     .def(pybind11::init<vector<int>&, const fill_zero&>())
@@ -57,62 +55,70 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     .def("subtract", &CtensorObj::subtract)
     ;
 
-  /* pybind11::class_<CtensorPackObj>(m,"CtensorPack") */
-  /*   .def(pybind11::init<vector<vector<int>>&, const fill_zero&>()); */
+  /* /1* pybind11::class_<CtensorPackObj>(m,"CtensorPack") *1/ */
+  /* /1*   .def(pybind11::init<vector<vector<int>>&, const fill_zero&>()); *1/ */
 
-  // SO3 Equivariant tensors
-  pybind11::class_<SO3type>(m,"_SO3type")
-    .def(pybind11::init<vector<int> >())
-    .def(pybind11::init<initializer_list<int> >())
-    .def("str",&SO3type::str);
+  /* // SO3 Equivariant tensors */
+  /* pybind11::class_<SO3type>(m,"_SO3type") */
+  /*   .def(pybind11::init<vector<int> >()) */
+  /*   .def(pybind11::init<initializer_list<int> >()) */
+  /*   .def("str",&SO3type::str); */
 
-  pybind11::class_<SO3element>(m,"_SO3element")
-    .def(pybind11::init<const double&, const double&, const double&>())
-    ;
-
-  pybind11::class_<SO3vec>(m,"_SO3vec")
-    .def(pybind11::init<const SO3type&, const fill_zero&>())
-    .def(pybind11::init<const SO3type&, const fill_gaussian&>())
-    .def(pybind11::init<const SO3type&, const fill_sequential&>())
-    .def("str",&SO3vec::str)
-    .def("add_CGproduct",&SO3vec::add_CGproduct)
-    .def("add_CGproduct_back0",&SO3vec::add_CGproduct_back0)
-    .def("add_CGproduct_back1",&SO3vec::add_CGproduct_back1)
-    /* .def("subtract",&SO3vec::subtract) */
-    /* .def("add",&SO3vec::add) */
-    ;
-
-  pybind11::class_<SO3part>(m,"_SO3part")
-    .def(pybind11::init<int, int, const fill_zero&>())
-    .def(pybind11::init<int, int, const fill_gaussian&>())
-    .def(pybind11::init<int, int, const fill_sequential&>())
-    .def("str",&SO3part::str)
-    .def("spharm",&SO3part::spharm)
-    .def("inp",&SO3part::inp)
-    /* .def("CGproduct",&SO3part::CGproduct) */
-    /* .def("rotate",&SO3part::rotate) */
-    /* .def("get",&SO3part::get) */
-    /* .def("set",&SO3part::set_value) */
-    /* .def("add", &SO3part::add_temp); */
-    ;
+  /* pybind11::class_<SO3element>(m,"_SO3element") */
+  /*   .def(pybind11::init<const double&, const double&, const double&>()) */
+  /*   ; */
 
   /* pybind11::class_<SO3vec>(m,"_SO3vec") */
   /*   .def(pybind11::init<const SO3type&, const fill_zero&>()) */
   /*   .def(pybind11::init<const SO3type&, const fill_gaussian&>()) */
   /*   .def(pybind11::init<const SO3type&, const fill_sequential&>()) */
-  /*   .def("str",&SO3vec::str); */
+  /*   .def("str",&SO3vec::str) */
+  /*   .def("add_CGproduct",&SO3vec::add_CGproduct) */
+  /*   .def("add_CGproduct_back0",&SO3vec::add_CGproduct_back0) */
+  /*   .def("add_CGproduct_back1",&SO3vec::add_CGproduct_back1) */
+  /*   /1* .def("subtract",&SO3vec::subtract) *1/ */
+  /*   /1* .def("add",&SO3vec::add) *1/ */
+  /*   ; */
+
+  pybind11::class_<SO3partArray>(m,"_SO3partArray")
+    .def(pybind11::init<vector<int>&, int, int, int>())
+    /* .def(pybind11::init<vector<int>&, int, int, fill_gaussian&, int>()); */
+    ;
+
+  /* pybind11::class_<SO3part>(m,"_SO3part") */
+  /*   .def(pybind11::init<int, int, const fill_zero&>()) */
+  /*   .def(pybind11::init<int, int, const fill_gaussian&>()) */
+  /*   .def(pybind11::init<int, int, const fill_sequential&>()) */
+  /*   .def("str",&SO3part::str) */
+  /*   .def("spharm",&SO3part::spharm) */
+  /*   .def("inp",&SO3part::inp) */
+  /*   /1* .def("CGproduct",&SO3part::CGproduct) *1/ */
+  /*   /1* .def("rotate",&SO3part::rotate) *1/ */
+  /*   /1* .def("get",&SO3part::get) *1/ */
+  /*   /1* .def("set",&SO3part::set_value) *1/ */
+  /*   /1* .def("add", &SO3part::add_temp); *1/ */
+  /*   ; */
+
+  /* /1* pybind11::class_<SO3vec>(m,"_SO3vec") *1/ */
+  /* /1*   .def(pybind11::init<const SO3type&, const fill_zero&>()) *1/ */
+  /* /1*   .def(pybind11::init<const SO3type&, const fill_gaussian&>()) *1/ */
+  /* /1*   .def(pybind11::init<const SO3type&, const fill_sequential&>()) *1/ */
+  /* /1*   .def("str",&SO3vec::str); *1/ */
+
+  // Functions on SO3partArrays
+  m.def("_construct_SO3partArray_from_Tensor", &SO3partArrayFromTensor, "Constructs an SO3partArray from a pytorch Tensor");
 
   // Functions on SO3parts
   m.def("_construct_SO3part_from_Tensor", &SO3partFromTensor, "Constructs an SO3part from a pytorch Tensor");
 
   // Functions on Ctensors
   m.def("_construct_Ctensor_from_Tensor", &CtensorFromTensor, "Constructs a Ctensor from a pytorch Tensor");
-  m.def("iadd_ctensor", &iadd_ctensor, "plus equals operation for ctensor");
-  m.def("add_ctensor", &add_ctensor, "sum operation for ctensor");
-  m.def("isubtract_ctensor", &isubtract_ctensor, "minus equals operation for ctensor");
-  m.def("subtract_ctensor", &subtract_ctensor, "minus operation for ctensor");
+  /* m.def("iadd_ctensor", &iadd_ctensor, "plus equals operation for ctensor"); */
+  /* m.def("add_ctensor", &add_ctensor, "sum operation for ctensor"); */
+  /* m.def("isubtract_ctensor", &isubtract_ctensor, "minus equals operation for ctensor"); */
+  /* m.def("subtract_ctensor", &subtract_ctensor, "minus operation for ctensor"); */
 
-  // Functions on SO3vecs
-  /* m.def("_SO3vec_times_scalar", &Generic_times_scalar_expr, "So3 vector multiplication w. scalar"); */
-  /* m.def("_SO3vec_times_scalar", &Generic_times_scalar_expr, "So3 vector multiplication w. scalar"); */
+  /* // Functions on SO3vecs */
+  /* /1* m.def("_SO3vec_times_scalar", &Generic_times_scalar_expr, "So3 vector multiplication w. scalar"); *1/ */
+  /* /1* m.def("_SO3vec_times_scalar", &Generic_times_scalar_expr, "So3 vector multiplication w. scalar"); *1/ */
 }

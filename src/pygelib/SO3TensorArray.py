@@ -187,6 +187,40 @@ class SO3TensorArray(object):
     def grad(self):
         return type(self)([t.grad for t in self])
 
+    def __add__(self, other):
+        """
+        Add element wise `torch.Tensors`
+        """
+        op = operator.add
+        if isinstance(other, SO3TensorArray):
+            return _add_SO3TensorArrays(self, other, op)
+        else:
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _add_SO3TensorArray_by_real_scalar(self, other, op)
+
+    def __sub__(self, other):
+        """
+        Add element wise `torch.Tensors`
+        """
+        op = operator.sub
+        if isinstance(other, SO3TensorArray):
+            return _add_SO3TensorArrays(self, other, op)
+        else:
+            try:
+                # Checks that real and imag parts are accessible
+                # before we start multiplication.
+                other.real
+                other.imag
+                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
+            except RuntimeError:
+                return _add_SO3TensorArray_by_real_scalar(self, other, op)
+
     def __mul__(self, other):
         """
         Add element wise `torch.Tensors`
@@ -221,41 +255,18 @@ class SO3TensorArray(object):
             except RuntimeError:
                 return _multiply_SO3TensorArray_by_real_scalar(self, other, op)
 
-    # __rmul__ = __mul__
-
-    def __add__(self, other):
-        """
-        Add element wise `torch.Tensors`
-        """
-        op = operator.add
+    def __truediv__(self, other):
         if isinstance(other, SO3TensorArray):
-            return _add_SO3TensorArrays(self, other, op)
+            return _divide_SO3TensorArrays(self, other)
         else:
             try:
                 # Checks that real and imag parts are accessible
                 # before we start multiplication.
                 other.real
                 other.imag
-                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
+                return _divide_SO3TensorArray_by_complex_scalar(self, other)
             except RuntimeError:
-                return _add_SO3TensorArray_by_real_scalar(self, other, op)
-
-    def __sub__(self, other):
-        """
-        Add element wise `torch.Tensors`
-        """
-        op = operator.sub
-        if isinstance(other, SO3TensorArray):
-            return _add_SO3TensorArrays(self, other, op)
-        else:
-            try:
-                # Checks that real and imag parts are accessible
-                # before we start multiplication.
-                other.real
-                other.imag
-                return _add_SO3TensorArray_by_complex_scalar(self, other, op)
-            except RuntimeError:
-                return _add_SO3TensorArray_by_real_scalar(self, other, op)
+                return _divide_SO3TensorArray_by_real_scalar(self, other)
 
 
 # Base Addition Routines
@@ -304,6 +315,39 @@ def _multiply_SO3TensorArray_by_complex_scalar(tensor_array, scalar, op):
 
 
 def _multiply_SO3TensorArray_by_real_scalar(tensor_array, scalar, op):
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        product = op(t_r, scalar)
+        output_parts.append(torch.stack([product,
+                                         torch.zeros_like(product)], dim=0))
+    return output_class(output_parts)
+
+
+# Base division Routines
+def _divide_SO3TensorArrays(tensor_array_1, tensor_array_2):
+    # op = operator.divide
+    output_class = type(tensor_array_1)
+    output_parts = []
+    for t1_r, t1_i, t2_r, t2_i in zip(tensor_array_1.real, tensor_array_1.imag, tensor_array_2.real, tensor_array_2.imag):
+        out_r = (t1_r * t2_r + t1_i * t2_i) / (t2_r * t2_r + t2_i * t2_i)
+        out_i = (t1_i * t2_r - t1_r * t2_i) / (t2_r * t2_r + t2_i * t2_i)
+        output_parts.append(torch.stack([out_r, out_i]))
+    return output_class(output_parts)
+
+
+def _divide_SO3TensorArray_by_complex_scalar(tensor_array, scalar, op):
+    op = operator.divide
+    output_class = type(tensor_array)
+    output_parts = []
+    for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
+        output_parts.append(torch.stack([op(t_r, scalar.real) - op(t_i, scalar.imag),
+                                         op(t_r, scalar.imag) + op(t_i, scalar.real)], dim=0))
+    return output_class(output_parts)
+
+
+def _divide_SO3TensorArray_by_real_scalar(tensor_array, scalar, op):
+    op = operator.divide
     output_class = type(tensor_array)
     output_parts = []
     for t_r, t_i in zip(tensor_array.real, tensor_array.imag):
