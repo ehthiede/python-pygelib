@@ -21,8 +21,8 @@ using namespace cnine;
 using namespace GElib;
 typedef CtensorObj Ctensor;
 
-#include "_SO3part.hpp"
-#include "_Ctensor.hpp"
+/* #include "_SO3part.hpp" */
+/* #include "_Ctensor.hpp" */
 #include "_SO3partArray.hpp"
 
 
@@ -45,6 +45,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   /*   .def("str",&CscalarObj::str) */
   /*   ; */
 
+
+  //////////// START
   pybind11::class_<CtensorObj>(m,"_Ctensor")
     .def(pybind11::init<vector<int>&, const fill_zero&>())
     .def(pybind11::init<vector<int>&, const fill_sequential&>())
@@ -54,6 +56,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     /* .def("add", &CtensorObj::add) */
     .def("subtract", &CtensorObj::subtract)
     ;
+  //////////// STOP
 
   /* /1* pybind11::class_<CtensorPackObj>(m,"CtensorPack") *1/ */
   /* /1*   .def(pybind11::init<vector<vector<int>>&, const fill_zero&>()); *1/ */
@@ -80,10 +83,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   /*   /1* .def("add",&SO3vec::add) *1/ */
   /*   ; */
 
+  //////////// START
   pybind11::class_<SO3partArray>(m,"_SO3partArray")
     .def(pybind11::init<vector<int>&, int, int, int>())
     /* .def(pybind11::init<vector<int>&, int, int, fill_gaussian&, int>()); */
     ;
+  //////////// STOP
 
   /* pybind11::class_<SO3part>(m,"_SO3part") */
   /*   .def(pybind11::init<int, int, const fill_zero&>()) */
@@ -105,14 +110,20 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   /* /1*   .def(pybind11::init<const SO3type&, const fill_sequential&>()) *1/ */
   /* /1*   .def("str",&SO3vec::str); *1/ */
 
+  //////////// START
   // Functions on SO3partArrays
   m.def("_construct_SO3partArray_from_Tensor", &SO3partArrayFromTensor, "Constructs an SO3partArray from a pytorch Tensor");
 
-  // Functions on SO3parts
-  m.def("_construct_SO3part_from_Tensor", &SO3partFromTensor, "Constructs an SO3part from a pytorch Tensor");
+  m.def("_construct_Tensor_from_SO3partArray", &TensorFromSO3partArray, "Constructs a pytorch Tensor from an SO3partArray");
 
-  // Functions on Ctensors
-  m.def("_construct_Ctensor_from_Tensor", &CtensorFromTensor, "Constructs a Ctensor from a pytorch Tensor");
+  /* // Functions on SO3parts */
+  /* m.def("_construct_SO3part_from_Tensor", &SO3partFromTensor, "Constructs an SO3part from a pytorch Tensor"); */
+
+  /* // Functions on Ctensors */
+  /* m.def("_construct_Ctensor_from_Tensor", &CtensorFromTensor, "Constructs a Ctensor from a pytorch Tensor"); */
+  //////////// STOP
+
+
   /* m.def("iadd_ctensor", &iadd_ctensor, "plus equals operation for ctensor"); */
   /* m.def("add_ctensor", &add_ctensor, "sum operation for ctensor"); */
   /* m.def("isubtract_ctensor", &isubtract_ctensor, "minus equals operation for ctensor"); */
