@@ -27,43 +27,63 @@ def get_extensions(extensions_dir, extension_name):
 
     main_file = glob(join(extensions_dir, "*.cpp"))
     source_cpu = glob(join(extensions_dir, "cpu", "*.cpp"))
-    # source_cuda = glob(join(extensions_dir, "cuda", "*.cu"))
+    source_cuda = glob(join(extensions_dir, "cuda", "*.cu"))
+    cnine_cuda_ops = glob(join(extensions_dir, "../../backend/cnine/cuda", "*.cu"))
 
-    sources = main_file + source_cpu
+    sources = main_file + source_cpu + cnine_cuda_ops
     extension = CppExtension
 
-    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread"]}
+    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wdeprecated-declarations"]}
     # extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-w"]}
     define_macros = []
 
-    # if (torch.cuda.is_available() and CUDA_HOME is not None) or getenv("FORCE_CUDA", "0") == "1":
-    #     extension = CUDAExtension
-    #     sources += source_cuda
-    #     define_macros += [("WITH_CUDA", None)]
-    #     extra_compile_args["nvcc"] = [
-    #         "-DCUDA_HAS_FP16=1",
-    #         "-D__CUDA_NO_HALF_OPERATORS__",
-    #         "-D__CUDA_NO_HALF_CONVERSIONS__",
-    #         "-D__CUDA_NO_HALF2_OPERATORS__",
-    #         "-O3",
-    #         "-DNDEBUG",
-    #         "--use_fast_math"
-    #     ]
+    print(CUDA_HOME)
+    if (torch.cuda.is_available() and CUDA_HOME is not None) or getenv("FORCE_CUDA", "0") == "1":
+        print("CUDA IS AVAILABLE")
+        extension = CUDAExtension
+        sources += source_cuda
+        sources.append(extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu")
+        sources.append(extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu")
+        print(sources)
+        define_macros += [("WITH_CUDA", None)]
+        extra_compile_args["nvcc"] = [
+            "-lcublas",
+            # "-DCUDA_HAS_FP16=1",
+            # "-D__CUDA_NO_HALF_OPERATORS__",
+            # "-D__CUDA_NO_HALF_CONVERSIONS__",
+            # "-D__CUDA_NO_HALF2_OPERATORS__",
+            "-O3",
+            # "-DNDEBUG",
+            "--use_fast_math",
+            "-D_WITH_CUDA",
+            "-D_WITH_CUBLAS",
+            "-m64",
+            # "-rdc=true"
+        ]
 
+    print(sources)
     sources = [join(extensions_dir, s) for s in sources]
+    print("post join: ", sources)
     print(extensions_dir)
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     include_dirs = [extensions_dir,
                     extensions_dir + '/../../backend/GElib/v2/include',
                     extensions_dir + '/../../backend/GElib/v2/objects/SO3',
+                    extensions_dir + '/../../backend/GElib/v2/objects/SO3/cell_ops',
                     extensions_dir + '/../../backend/GElib/v2/objects/SO3/cell_ops',
                     # extensions_dir + '/../../backend/GElib/v2/cuda',
                     extensions_dir + '/../../backend/cnine/v1/include',
                     extensions_dir + '/../../backend/cnine/v1/objects/scalar',
                     extensions_dir + '/../../backend/cnine/v1/objects/tensor',
                     extensions_dir + '/../../backend/cnine/v1/objects/tensor_array',
-                    extensions_dir + '/../../backend/cnine/v1/objects/tensor_array/cell_ops'
+                    extensions_dir + '/../../backend/cnine/v1/objects/tensor_array/cell_ops',
+                    # extensions_dir + '/../../backend/cnine/v1/cuda/'
                     ]
-
+    print("extension:", extension)
+    print("sources:", sources)
+    print("include_dirs:", include_dirs)
+    print("define_macros:", define_macros)
+    print("extra_compile_args:", extra_compile_args)
     ext_modules = [
         extension(
             extension_name,
@@ -147,3 +167,4 @@ if __name__ == '__main__':
         ext_modules=ext_modules,
         cmdclass={"build_ext": torch.utils.cpp_extension.BuildExtension},
     )
+    # blahblah

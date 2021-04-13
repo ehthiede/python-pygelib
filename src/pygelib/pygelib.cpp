@@ -87,7 +87,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   pybind11::class_<SO3partArray>(m,"_SO3partArray")
     .def(pybind11::init<vector<int>&, int, int, int>())
     /* .def(pybind11::init<vector<int>&, int, int, fill_gaussian&, int>()); */
+    /* .def("CGproduct", &SO3part::CGproduct) */
     ;
+
+  m.def("_partArray_CGproduct", &partArrayCGproduct, "Takes cg product of two part arrays");
+  /* m.def("_partArray_CGproduct", &py::overload_cast<const SO3partArray&, const SO3partArray&, const int l>(&CGproduct)); */
   //////////// STOP
 
   /* pybind11::class_<SO3part>(m,"_SO3part") */
@@ -114,7 +118,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // Functions on SO3partArrays
   m.def("_construct_SO3partArray_from_Tensor", &SO3partArrayFromTensor, "Constructs an SO3partArray from a pytorch Tensor");
 
-  m.def("_construct_Tensor_from_SO3partArray", &TensorFromSO3partArray, "Constructs a pytorch Tensor from an SO3partArray");
+  m.def("_construct_Tensor_from_SO3partArray", &MoveSO3partArrayToTensor, "Constructs a pytorch Tensor from an SO3partArray");
 
   /* // Functions on SO3parts */
   /* m.def("_construct_SO3part_from_Tensor", &SO3partFromTensor, "Constructs an SO3part from a pytorch Tensor"); */
