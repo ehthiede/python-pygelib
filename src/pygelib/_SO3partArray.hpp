@@ -136,6 +136,6 @@ inline SO3partArray partArrayCGproduct(const SO3partArray& x, const SO3partArray
     return CGproduct(x, y, l);
 }
 
-inline SO3partArray __add__(const SO3partArray& x, const SO3partArray& y){
+inline SO3partArray add_SO3partArrays(const SO3partArray& x, const SO3partArray& y){
     return x + y;
 }

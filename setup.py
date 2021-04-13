@@ -28,26 +28,42 @@ def get_extensions(extensions_dir, extension_name):
     main_file = glob(join(extensions_dir, "*.cpp"))
     source_cpu = glob(join(extensions_dir, "cpu", "*.cpp"))
     source_cuda = glob(join(extensions_dir, "cuda", "*.cu"))
-    cnine_cuda_ops = glob(join(extensions_dir, "../../backend/cnine/cuda", "*.cu"))
+    print(extensions_dir)
+    cnine_cuda_ops_file = join(extensions_dir, "../../backend/cnine/v1/cuda", "*.cu")
+    cnine_cuda_ops = glob(join(extensions_dir, "../../backend/cnine/v1/cuda", "*.cu"))
+    print("cnine_cuda_ops_file")
+    print(cnine_cuda_ops_file)
+    print("cnine_cuda_ops")
+    print(cnine_cuda_ops)
 
     sources = main_file + source_cpu + cnine_cuda_ops
+    print("!!!!!!!!!!!!!!!!!!")
+    print(sources)
+    print("!!!!!!!!!!!!!!!!!!")
     extension = CppExtension
 
-    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wdeprecated-declarations"]}
+    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations"]}
     # extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-w"]}
     define_macros = []
 
     print(CUDA_HOME)
+    print(sources)
+    print("!!!!!!!!!!!!!!!!!!")
     if (torch.cuda.is_available() and CUDA_HOME is not None) or getenv("FORCE_CUDA", "0") == "1":
         print("CUDA IS AVAILABLE")
         extension = CUDAExtension
+        print(source_cuda)
         sources += source_cuda
-        sources.append(extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu")
-        sources.append(extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu")
         print(sources)
+        print("@@@@@@@@@@@@@@@@@@")
+        # sources.append(extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu")
+        # sources.append(extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu")
+        print(sources)
+        print("@@@@@@@@@@@@@@@@@@ end")
         define_macros += [("WITH_CUDA", None)]
         extra_compile_args["nvcc"] = [
             "-lcublas",
+            "-lcudadevrt",
             # "-DCUDA_HAS_FP16=1",
             # "-D__CUDA_NO_HALF_OPERATORS__",
             # "-D__CUDA_NO_HALF_CONVERSIONS__",
@@ -90,7 +106,11 @@ def get_extensions(extensions_dir, extension_name):
             sources,
             include_dirs=include_dirs,
             define_macros=define_macros,
+            runtime_libraries=['cudart'],
+            libraries=['cudart', 'dl'],
             extra_compile_args=extra_compile_args,
+            # depends=[extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu"]
+            depends=[extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu"]
         )
     ]
 
