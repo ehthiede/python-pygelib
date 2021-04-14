@@ -13,8 +13,22 @@ from os.path import splitext
 
 from setuptools import find_packages
 from setuptools import setup
-from torch.utils.cpp_extension import CppExtension, CUDAExtension, CUDA_HOME
+from torch.utils.cpp_extension import CppExtension, CUDAExtension, CUDA_HOME, BuildExtension
 import torch
+
+
+class CustomBuildExtension(BuildExtension):
+
+    def build_extensions(self):
+        # print("made it inside")
+        # print(self)
+        # print(dir(self))
+        # print("Compiler:", self.compiler)
+        # print("Compiler:", dir(self.compiler))
+        # print("!~~~~~~~")
+        # print(self.compiler.executables)
+        # raise Exception
+        return BuildExtension.build_extensions(self)
 
 
 def get_extensions(extensions_dir, extension_name):
@@ -28,89 +42,51 @@ def get_extensions(extensions_dir, extension_name):
     main_file = glob(join(extensions_dir, "*.cpp"))
     source_cpu = glob(join(extensions_dir, "cpu", "*.cpp"))
     source_cuda = glob(join(extensions_dir, "cuda", "*.cu"))
-    print(extensions_dir)
-    cnine_cuda_ops_file = join(extensions_dir, "../../backend/cnine/v1/cuda", "*.cu")
-    cnine_cuda_ops = glob(join(extensions_dir, "../../backend/cnine/v1/cuda", "*.cu"))
-    print("cnine_cuda_ops_file")
-    print(cnine_cuda_ops_file)
-    print("cnine_cuda_ops")
-    print(cnine_cuda_ops)
+    cnine_cuda_ops = glob(join(this_dir, "backend/cnine/v1/cuda", "*.cu"))
+    gelib_cuda_ops = glob(join(this_dir, "backend/GElib/v2/cuda", "*.cu"))
 
-    sources = main_file + source_cpu + cnine_cuda_ops
-    print("!!!!!!!!!!!!!!!!!!")
-    print(sources)
-    print("!!!!!!!!!!!!!!!!!!")
+    sources = main_file + source_cpu + cnine_cuda_ops + gelib_cuda_ops
+    sources.append(join(this_dir, "backend/cnine/v1/include/Cnine_base.cu"))
     extension = CppExtension
 
-    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations"]}
-    # extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-w"]}
-    define_macros = []
+    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-D_WITH_CUBLAS", "-lcublas", "-D_WITH_CUDA", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations", "-lcudadevrt"]}
 
-    print(CUDA_HOME)
-    print(sources)
-    print("!!!!!!!!!!!!!!!!!!")
     if (torch.cuda.is_available() and CUDA_HOME is not None) or getenv("FORCE_CUDA", "0") == "1":
-        print("CUDA IS AVAILABLE")
         extension = CUDAExtension
-        print(source_cuda)
         sources += source_cuda
-        print(sources)
-        print("@@@@@@@@@@@@@@@@@@")
-        # sources.append(extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu")
-        # sources.append(extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu")
-        print(sources)
-        print("@@@@@@@@@@@@@@@@@@ end")
-        define_macros += [("WITH_CUDA", None)]
-        extra_compile_args["nvcc"] = [
-            "-lcublas",
-            "-lcudadevrt",
-            # "-DCUDA_HAS_FP16=1",
-            # "-D__CUDA_NO_HALF_OPERATORS__",
-            # "-D__CUDA_NO_HALF_CONVERSIONS__",
-            # "-D__CUDA_NO_HALF2_OPERATORS__",
-            "-O3",
-            # "-DNDEBUG",
-            "--use_fast_math",
-            "-D_WITH_CUDA",
-            "-D_WITH_CUBLAS",
-            "-m64",
-            # "-rdc=true"
-        ]
+        extra_compile_args["nvcc"] = ["-O3", "-D_WITH_CUDA",
+                                      "-D_DEF_CGCMEM",
+                                      "-lcudadevrt",
+                                      "-lcublas",
+                                      "-D_WITH_CUBLAS"
+                                      ]
 
-    print(sources)
     sources = [join(extensions_dir, s) for s in sources]
-    print("post join: ", sources)
-    print(extensions_dir)
+    # print("post join: ", sources)
+    # print(extensions_dir)
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    include_dirs = [extensions_dir,
-                    extensions_dir + '/../../backend/GElib/v2/include',
-                    extensions_dir + '/../../backend/GElib/v2/objects/SO3',
-                    extensions_dir + '/../../backend/GElib/v2/objects/SO3/cell_ops',
-                    extensions_dir + '/../../backend/GElib/v2/objects/SO3/cell_ops',
-                    # extensions_dir + '/../../backend/GElib/v2/cuda',
-                    extensions_dir + '/../../backend/cnine/v1/include',
-                    extensions_dir + '/../../backend/cnine/v1/objects/scalar',
-                    extensions_dir + '/../../backend/cnine/v1/objects/tensor',
-                    extensions_dir + '/../../backend/cnine/v1/objects/tensor_array',
-                    extensions_dir + '/../../backend/cnine/v1/objects/tensor_array/cell_ops',
-                    # extensions_dir + '/../../backend/cnine/v1/cuda/'
+    print("sources:")
+    for source in sources:
+        print(source)
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    include_dirs = [this_dir + '/backend/GElib/v2/include',
+                    this_dir + '/backend/GElib/v2/objects/SO3',
+                    this_dir + '/backend/GElib/v2/objects/SO3/cell_ops',
+                    this_dir + '/backend/GElib/v2/cuda',
+                    this_dir + '/backend/cnine/v1/include',
+                    this_dir + '/backend/cnine/v1/objects/scalar',
+                    this_dir + '/backend/cnine/v1/objects/tensor',
+                    this_dir + '/backend/cnine/v1/objects/tensor_array',
+                    this_dir + '/backend/cnine/v1/objects/tensor_array/cell_ops',
+                    this_dir + '/backend/cnine/v1/cuda'
                     ]
-    print("extension:", extension)
-    print("sources:", sources)
-    print("include_dirs:", include_dirs)
-    print("define_macros:", define_macros)
-    print("extra_compile_args:", extra_compile_args)
+
     ext_modules = [
         extension(
             extension_name,
             sources,
             include_dirs=include_dirs,
-            define_macros=define_macros,
-            runtime_libraries=['cudart'],
-            libraries=['cudart', 'dl'],
-            extra_compile_args=extra_compile_args,
-            # depends=[extensions_dir + "/../../backend/GElib/v2/cuda/SO3partA_CGproduct.cu"]
-            depends=[extensions_dir + "/../../backend/cnine/v1/include/Cnine_base.cu"]
+            extra_compile_args=extra_compile_args
         )
     ]
 
@@ -185,6 +161,6 @@ if __name__ == '__main__':
             #   ':python_version=="2.6"': ['argparse'],
         },
         ext_modules=ext_modules,
-        cmdclass={"build_ext": torch.utils.cpp_extension.BuildExtension},
+        cmdclass={"build_ext": CustomBuildExtension},
     )
     # blahblah
