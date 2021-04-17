@@ -38,6 +38,32 @@ def move_to_end(x, dim):
     return x.permute(permute_indices)
 
 
+def _initialize_in_SO3part_view(shape, init_fxn, cell_index=1, padding_multiple=32):
+    adims = tuple(shape[:cell_index])  # Indices of cells
+    cdims = tuple(shape[cell_index:])  # Indices inside a cell
+    flattened_cdims = np.prod(cdims)
+    padded_cdim_size = padding_multiple * ceil(flattened_cdims / padding_multiple)
+
+    init_dims = adims + (padded_cdim_size,)
+    output_data = init_fxn(init_dims)
+    new_strides = _get_expanded_strides(adims, cdims, padded_cdim_size)
+    output = torch.as_strided(output_data, shape, new_strides)
+    return output
+
+
+def _get_expanded_strides(adims, cdims, padded_cdim_size):
+    reverse_strides = []
+    init_dim = 1
+    for d in cdims[::-1]:
+        reverse_strides.append(init_dim)
+        init_dim *= d
+    init_dim = padded_cdim_size
+    for d in adims[::-1]:
+        reverse_strides.append(init_dim)
+        init_dim *= d
+    return tuple(reverse_strides[::-1])
+
+
 def _convert_to_SO3part_view(tensor, cell_index=1, padding_multiple=32):
     """
     Converts a tensor corresponding to an SO3part into a view that is acceptable

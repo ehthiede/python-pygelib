@@ -1,5 +1,5 @@
 #include <torch/torch.h>
-
+#include <math.h>
 #include "GElib_base.cpp"
 #include "SO3partArray.hpp"
 #include "GElibSession.hpp"
@@ -10,7 +10,7 @@ typedef CtensorObj Ctensor;
 
 /* #include "_SO3part.hpp" */
 /* #include "_Ctensor.hpp" */
-#include "_SO3partArraytemp.hpp"
+#include "_SO3partArray.hpp"
 #include "SO3partArrayA.hpp"
 #include "SO3partArray.hpp"
 
@@ -32,6 +32,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     /* .def(pybind11::init<vector<int>&, int, int, int>()) */
     .def(pybind11::init<vector<int>&, int, int, fill_gaussian&, int>())
     .def("str", &SO3partArray::str)
+    /* .def("CGproduct_back0", &CGproduct_back0) */
+    /* .def("CGproduct_back1", &CGproduct_back1) */
+    /* .def("CGproduct", &CGproduct<SO3partArray&, SO3partArray&, int>) */
     /* .def(pybind11::init<vector<int>&, int, int, fill_gaussian&, int>()); */
     /* .def("CGproduct", &SO3part::CGproduct) */
     ;
@@ -39,7 +42,18 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   pybind11::class_<GElibSession>(m,"GElibSession")
     .def(pybind11::init<>());
 
-  m.def("sampleprint", &sampleprint, "Construct and print an SO3partArray");
-  m.def("add_SO3partArrays", &add_SO3partArrays, "Construct and print an SO3partArray");
-  m.def("partArrayCGproduct", &partArrayCGproduct, "Construct and print an SO3partArray");
+  /* m.def("_internal_SO3partArray_from_Tensor", &SO3partArrayFromTensor, "Constructs a GElib SO3partArray from a pytorch Tensor. Does NOT account for padding."); */
+  m.def("_internal_SO3partArray_from_Tensor", &SO3partArrayFromTensor, py::return_value_policy::move);
+  m.def("_internal_Tensor_from_SO3partArray", &MoveSO3partArrayToTensor, "Constructs a tensor from a GElib SO3partArray. Does NOT account for padding.");
+  m.def("_sampleprint_test", &sampleprint, "Testing method that constructs and prints an SO3partArray of ones on CPU and GPU.");
+  m.def("sum_SO3partArrays_inplace", &sum_SO3partArrays_inplace, "Sum two SO3 part arrays in place");
+  m.def("partArrayCGproduct", &partArrayCGproduct, "Performs a CG product of two parts");
+  m.def("add_in_partArrayCGproduct", &add_in_partArrayCGproduct, "Construct and print an SO3partArray");
+  m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray");
+  m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray");
+
+  // Some testing routines
+  m.def("sum_tensors_in_place", &sum_tensors_in_place, "sum tensors in place");
+  m.def("test_conversion", &test_conversion, "sum tensors in place");
+  m.def("get_SO3partArray_pointers", &get_SO3partArray_pointers);
 }
