@@ -33,11 +33,41 @@ class TestCGProduct():
         B_arr_copy = SO3VecArray(B_tnsrs_copy)
 
         C_out = cg_product_forward(A_arr, B_arr)
-
         C_out_copy = cg_product_forward(A_arr_copy, B_arr_copy)
 
         for i, j in zip(C_out, C_out_copy):
-            torch.allclose(i - j, torch.zeros_like(i))
+            assert(torch.allclose(i - j, torch.zeros_like(i)))
+            print(i)
+        # raise Exception
+
+    @pytest.mark.parametrize('lA', [0, 1, 4])
+    @pytest.mark.parametrize('lB', [0, 1, 5])
+    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    def test_product_values(self, lA, lB, device):
+        nc_A = 32
+        nc_B = 32
+
+        A_tnsr = torch.randn(2, 1, 2*lA+1, nc_A, device=device)
+        B_tnsr = torch.randn(2, 1, 2*lB+1, nc_B, device=device)
+
+        A_arr = SO3VecArray(A_tnsr)
+        B_arr = SO3VecArray(B_tnsr)
+
+        C_out_copy = cg_product_forward(A_arr, B_arr)
+
+        A_gelib_prt = backend._internal_SO3partArray_from_Tensor(A_tnsr[0], A_tnsr[1])
+        B_gelib_prt = backend._internal_SO3partArray_from_Tensor(B_tnsr[0], B_tnsr[1])
+
+        for c in C_out_copy:
+            l = (c.shape[2] - 1) // 2
+            c_flat = c.reshape(2, 1, c.shape[2] * c.shape[3])
+
+            c_gelib_prod = backend.partArrayCGproduct(A_gelib_prt, B_gelib_prt, l)
+            c_from_gelib = backend._internal_Tensor_from_SO3partArray(c_gelib_prod)
+            c_from_gelib = torch.stack(c_from_gelib, dim=0)
+            print(c_flat.shape)
+
+            assert(torch.allclose(c_flat, c_from_gelib))
 
 
 @pytest.mark.parametrize('l1_1', [1, 5])
