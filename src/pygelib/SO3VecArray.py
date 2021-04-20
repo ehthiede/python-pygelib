@@ -6,6 +6,7 @@ from pygelib.SO3TensorArray import SO3TensorArray
 from pygelib.utils import move_to_end, move_from_end
 from pygelib.rotations import WignerD_list
 from pygelib.utils import _convert_to_SO3part_view
+from copy import deepcopy
 import pygelib_cpp as backend
 
 
@@ -25,7 +26,10 @@ class SO3VecArray(SO3TensorArray):
 
     def __init__(self, data, rdim=-2):
         if isinstance(data, type(self)):
-            data = data.data
+            self._data = data._data
+        elif isinstance(data, torch.Tensor):
+            print("recognizing as tensor!")
+            self._data = [data]
         else:
             self._data = list(data)
 
@@ -56,15 +60,17 @@ class SO3VecArray(SO3TensorArray):
     def adims(self):
         arr_shapes = []
         for shape in self.shapes:
-            del shape[self._rdim]
-            arr_shapes.append(shape[:-1])
+            new_shape = list(deepcopy(shape))
+            del new_shape[self._rdim]
+            # Remove first (complex) and last (channel) dimensions
+            arr_shapes.append(tuple(new_shape[1:-1]))
         return arr_shapes
 
     @property
     def fragment_dict(self):
         fragment_dict = {}
         for shape in self.shapes:
-            l = (shape[self.rdim] - 1)//2,
+            l = (shape[self.rdim] - 1)//2
             fragment_dict[l] = shape[-1]
         return fragment_dict
 

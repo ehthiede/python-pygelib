@@ -35,9 +35,9 @@ SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Te
     // Set to view
     output.is_view=true;
 
-    cout << "Tensor Pointer:" << x_real.data<float>() << endl;;
+    /* cout << "Tensor Pointer:" << x_real.data<float>() << endl;; */
     if(dev_real == 0){
-        cout << "is cpu" << endl;
+        /* cout << "is cpu" << endl; */
         output.arr = x_real.data<float>();
         output.arrc = x_imag.data<float>();
         /* cout << "pointers are being set to :" << output.arr << output.arrc << endl; */
@@ -49,7 +49,7 @@ SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Te
 
     /* SO3partArray ytst(gdms, l, n, fill::ones, dev_real); */
     /* output += ytst; */
-    cout << "pointers before return" << output.arr << ", " << output.arrc << endl;
+    /* cout << "pointers before return" << output.arr << ", " << output.arrc << endl; */
 
     return output;
 }
@@ -84,7 +84,7 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
     torch::Tensor output_real;
     torch::Tensor output_imag;
 
-    cout << "STarting recosntruction " << endl;
+    /* cout << "STarting recosntruction " << endl; */
     if(partarray.dev == 0){
         auto options =
             torch::TensorOptions()
@@ -99,8 +99,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
         partarray.arrc = nullptr;
     }
     else{
-        Gdims gdms({5});
-        vector<int64_t> tensordim({5, 3, 32});
         auto options =
             torch::TensorOptions()
                 .dtype(torch::kFloat32)
@@ -108,13 +106,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
                 .device(torch::kCUDA)
                 /* .device(torch::kCPU) */
                 .requires_grad(false);
-        cout << "defined options" << endl;
-        /* SO3partArray test(gdms, 1, 32, fill::zero, 1); */
-        /* /1* device deva=deviceid::CPU; *1/ */
-        /* SO3partArray test2(test, 0); */
-        /* output_real = torch::from_blob(test2.arr, tensordim, options0); */
-        /* SO3partArray (gdms, 1, 32, fill::gaussian, 0); */
-        /* output_real = torch::from_blob(partarray.arr, tensordim, options); */
 
 
         output_real = torch::from_blob(partarray.arrg, v, options);
@@ -127,7 +118,7 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
 
     }
 
-    cout << "Made device I think" << endl;
+    /* cout << "Made device I think" << endl; */
     /* torch::Tensor output = torch::randn(v, options); */
     pair<torch::Tensor, torch::Tensor> output(output_real, output_imag);
     return output;
@@ -151,13 +142,18 @@ inline int get_num_adims(const SO3partArray&x){
     return x.adims.size();
 }
 
+inline int get_num_channels(const SO3partArray&x){
+    int size = x.cdims.size();
+    return x.cdims[size-1];
+}
+
 void sampleprint(){
     SO3partArray cpu_array({3}, 2, 2, fill::ones, 0);
-    cout << "cpu_array" << endl;
-    cout << cpu_array << endl;
+    /* cout << "cpu_array" << endl; */
+    /* cout << cpu_array << endl; */
     SO3partArray gpu_array({3}, 2, 2, fill::ones, 1);
-    cout << "gpu_array" << endl;
-    cout << gpu_array << endl;
+    /* cout << "gpu_array" << endl; */
+    /* cout << gpu_array << endl; */
 }
 
 
@@ -168,27 +164,33 @@ inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& 
     output += CGproduct(x, y, l);
 }
 
-inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){
-    int l = output.getl();
-    output.add_CGproduct_back0(other, x, l);
-}
+/* inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){ */
+/*     int l = output.getl(); */
+/*     output.add_CGproduct_back0(other, x, l); */
+/* } */
 
-inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){
-    int l = output.getl();
-    output.add_CGproduct_back1(x, other, l);
-}
+/* inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){ */
+/*     int l = output.getl(); */
+/*     output.add_CGproduct_back1(x, other, l); */
+/* } */
 
 inline void sum_SO3partArrays_inplace(SO3partArray& x, const SO3partArray& y){
-    cout << "STTTTAAAAAARRRRRTTTTTIIIIINNNNNGGGGGG" << endl;
-    cout << "---------------------------" << endl;
-    cout << "x ptr:" << x.arr <<  x.arrc << endl;
-    /* cout << x.str("") << endl; */
     x += y;
-    /* cout << x.str("") << endl; */
-    cout << "x ptr:" << x.arr << x.arrc << endl;
-    cout << "---------------------------" << endl;
 }
 
 inline SO3partArray partArrayCGproduct(const SO3partArray& x, const SO3partArray& y, const int l){
     return CGproduct(x, y, l);
+}
+
+inline vector<int> estimate_num_products(const vector<int>& types_one, const vector<int>& types_two){
+    SO3type tau1(types_one);
+    SO3type tau2(types_two);
+    SO3type product(CGproduct(types_one, types_two));
+
+    int num_out = product.size();
+    vector<int> v(num_out);
+    for(int i=0; i<num_out; i++){
+        v[i] = product[i];
+    }
+    return v;
 }

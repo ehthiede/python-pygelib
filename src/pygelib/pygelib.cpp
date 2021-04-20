@@ -2,6 +2,7 @@
 #include <math.h>
 #include "GElib_base.cpp"
 #include "SO3partArray.hpp"
+#include "SO3vec.hpp"
 #include "GElibSession.hpp"
 
 using namespace cnine;
@@ -49,11 +50,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("sum_SO3partArrays_inplace", &sum_SO3partArrays_inplace, "Sum two SO3 part arrays in place");
   m.def("partArrayCGproduct", &partArrayCGproduct, "Performs a CG product of two parts");
   m.def("add_in_partArrayCGproduct", &add_in_partArrayCGproduct, "Construct and print an SO3partArray");
-  m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray");
-  m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray");
+  /* m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray"); */
+  /* m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray"); */
 
   // Some testing routines
-  m.def("sum_tensors_in_place", &sum_tensors_in_place, "sum tensors in place");
-  m.def("test_conversion", &test_conversion, "sum tensors in place");
-  m.def("get_SO3partArray_pointers", &get_SO3partArray_pointers);
+  /* m.def("sum_tensors_in_place", &sum_tensors_in_place, "sum tensors in place"); */
+  /* m.def("test_conversion", &test_conversion, "sum tensors in place"); */
+  /* m.def("get_SO3partArray_pointers", &get_SO3partArray_pointers); */
+  m.def("get_num_channels", &get_num_channels);
+  m.def("estimate_num_products", &estimate_num_products);
 }

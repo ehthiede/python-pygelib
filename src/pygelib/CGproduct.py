@@ -1,25 +1,54 @@
 import numpy as np
-import pygelib_cpp as backend
-from utils import
+import torch
+import pygelib_cpp as pcpp
+from pygelib.utils import _initialize_in_SO3part_view
+from pygelib.SO3VecArray import SO3VecArray
 
 
-def cg_product_forward(A, B, output_shapes=None, lmin=0, lmax=None):
+def cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
     """
     Forward pass for a CG product, A x B
 
-    A : SO3vecArray
-        First SO3vecArray
-    B : SO3vecArray
-        Second SO3vecArray
+    A : SO3VecArray
+        First SO3VecArray
+    B : SO3VecArray
+        Second SO3VecArray
 
     """
+    if lmax is None:
+        max_l_A = np.max(A.ells)
+        max_l_B = np.max(B.ells)
+        lmax = max_l_A + max_l_B
+
     # Create tensors
-    if output_shapes is None:
-        output_shapes = _compute_output_shape(A, B, lmin, lmax)
+    if output_info is None:
+        output_keys, output_shapes = _compute_output_shape(A, B, lmin, lmax)
+    else:
+        output_keys, output_shapes = output_info
 
+    output_tensors = []
+    for l, shape in output_shapes.items():
+        if l > lmax:
+            continue
 
-    # Create output
-    # output_tensors = {l: torch
+        output_tensor = _initialize_in_SO3part_view(shape, torch.zeros, A.rdim)
+        block_start = 0  # Start index of next block
+        for part_A in A:
+            l_A = (part_A.shape[A.rdim] - 1) // 2
+            part_A_prt = pcpp._internal_SO3partArray_from_Tensor(part_A[0], part_A[1])
+            for part_B in B:
+                l_B = (part_B.shape[B.rdim] - 1) // 2
+                if (l_A, l_B, l) in output_keys.keys():
+                    part_B_prt = pcpp._internal_SO3partArray_from_Tensor(part_B[0], part_B[1])
+
+                    block_end = block_start + output_keys[(l_A, l_B, l)]
+                    block = output_tensor[..., block_start:block_end]
+                    block_prt = pcpp._internal_SO3partArray_from_Tensor(block[0], block[1])
+                    pcpp.add_in_partArrayCGproduct(block_prt, part_A_prt, part_B_prt)
+                    block_start = block_end
+
+        output_tensors.append(output_tensor)
+    return SO3VecArray(output_tensors)
 
 
 def _compute_output_shape(A, B, lmin=0, lmax=None):
@@ -29,29 +58,41 @@ def _compute_output_shape(A, B, lmin=0, lmax=None):
     A_fragment_dict = A.fragment_dict
     B_fragment_dict = B.fragment_dict
     output_adim = _check_product_is_possible(A, B)
-    A_ells = A_fragment_dict.keys()
-    B_ells = B_fragment_dict.keys()
+    A_ells = list(A_fragment_dict.keys())
+    B_ells = list(B_fragment_dict.keys())
 
     if lmax is None:
         max_l_A = np.max(A_ells)
         max_l_B = np.max(B_ells)
         lmax = max_l_A + max_l_B
 
-    output_shapes = {}
+    output_keys = {}
     for l_A, nc_A in A_fragment_dict.items():
+        type_A = np.zeros(l_A + 1, dtype=int)
+        type_A[-1] = nc_A
         for l_B, nc_B in B_fragment_dict.items():
-            possible_lmin = max(abs(l_A - l_B), lmin)
-            possible_lmax = min(abs(l_A + l_B), lmin)
-            for l_out in range(possible_lmin, possible_lmax):
-                num_channels = nc_A * nc_B
-                if l_out in output_shapes.keys():
-                    output_shapes[l_out][-1] += num_channels
-                else:
-                    output_shape_l = list(output_adim) + [num_channels]
-                    output_shape_l.insert(B.rdim, 2 * l_out + 1)
-                    output_shapes[l_out] = output_shape_l
+            type_B = np.zeros(l_B + 1, dtype=int)
+            type_B[-1] = nc_B
+            type_AB = pcpp.estimate_num_products(list(type_A), list(type_B))
+            for l_out, nc_out in enumerate(type_AB):
+                if nc_out != 0:
+                    output_keys[(l_A, l_B, l_out)] = nc_out
 
-    return output_shapes
+    total_output_shapes = {}
+    for (__, ___, l), nc in output_keys.items():
+        if l > lmax:
+            break
+        if l in total_output_shapes.keys():
+            total_output_shapes[l][-1] += nc
+        else:
+            output_shape_l = [2] + list(output_adim) + [nc]
+            if B.rdim < 0:
+                output_shape_l.insert(B.rdim+1, 2 * l + 1)
+            else:
+                output_shape_l.insert(B.rdim, 2 * l + 1)
+            total_output_shapes[l] = output_shape_l
+
+    return output_keys, total_output_shapes
 
 
 def _check_product_is_possible(A, B):

@@ -74,6 +74,7 @@ def get_extensions(extensions_dir, extension_name):
                     this_dir + '/backend/GElib/v2/objects/SO3/cell_ops',
                     this_dir + '/backend/GElib/v2/cuda',
                     this_dir + '/backend/cnine/v1/include',
+                    this_dir + '/backend/cnine/v1/include/cmaps',
                     this_dir + '/backend/cnine/v1/objects/scalar',
                     this_dir + '/backend/cnine/v1/objects/tensor',
                     this_dir + '/backend/cnine/v1/objects/tensor_array',
