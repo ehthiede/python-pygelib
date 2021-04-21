@@ -49,7 +49,7 @@ def get_extensions(extensions_dir, extension_name):
     sources.append(join(this_dir, "backend/cnine/v1/include/Cnine_base.cu"))
     extension = CppExtension
 
-    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-D_WITH_CUBLAS", "-lcublas", "-D_WITH_CUDA", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations", "-lcudadevrt"]}
+    extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-D_WITH_CUBLAS", "-lcublas", "-D_WITH_CUDA", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations", "-Wno-maybe-uninitialized", "-lcudadevrt"]}
 
     if (torch.cuda.is_available() and CUDA_HOME is not None) or getenv("FORCE_CUDA", "0") == "1":
         extension = CUDAExtension
