@@ -1,4 +1,7 @@
 // Additional routines for interfacing with pytorch.
+typedef SO3partA_CGproduct_cop SO3part_CGproduct;
+
+
 SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Tensor& x_imag){
     /* AT_ASSERT(x_real.dim() == 2,"SO3parts must be two-dimensional"); */
     int dev_real = int(x_real.type().is_cuda());
@@ -16,41 +19,30 @@ SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Te
         AT_ASSERT(xr_size == x_imag.size(i),
                   "Sizes between real and imaginary tensor must agree.");
         if (i < ndim_real - 2){
-            /* cout << i << endl; */
-            /* cout << xr_size << endl; */
             dms.push_back(xr_size);
         }
         else if (i == ndim_real -2){
             l = (xr_size -1)/2;
-            /* cout << i  << "l" << l << endl; */
         }
         else if (i == ndim_real-1){
             n = xr_size;
-            /* cout << i  << "n" << n << endl; */
         }
     }
     Gdims gdms(dms);
+    /* SO3partArray output(gdms, l, n, fill::noalloc, dev_real); */
     SO3partArray output(gdms, l, n, fill::noalloc, dev_real);
 
     // Set to view
     output.is_view=true;
 
-    /* cout << "Tensor Pointer:" << x_real.data<float>() << endl;; */
     if(dev_real == 0){
-        /* cout << "is cpu" << endl; */
         output.arr = x_real.data<float>();
         output.arrc = x_imag.data<float>();
-        /* cout << "pointers are being set to :" << output.arr << output.arrc << endl; */
     }
     else{
         output.arrg = x_real.data<float>();
-        output.arrgc = x_imag.data<float>();
+        /* output.arrgc = x_imag.data<float>(); */
     }
-
-    /* SO3partArray ytst(gdms, l, n, fill::ones, dev_real); */
-    /* output += ytst; */
-    /* cout << "pointers before return" << output.arr << ", " << output.arrc << endl; */
-
     return output;
 }
 
@@ -84,7 +76,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
     torch::Tensor output_real;
     torch::Tensor output_imag;
 
-    /* cout << "STarting recosntruction " << endl; */
     if(partarray.dev == 0){
         auto options =
             torch::TensorOptions()
@@ -110,7 +101,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
 
         output_real = torch::from_blob(partarray.arrg, v, options);
 
-        /* cout << "made first real tensor" << endl; */
         output_imag = torch::from_blob(partarray.arrgc, v, options);
         partarray.arrg = nullptr;
         partarray.arrgc = nullptr;
@@ -118,7 +108,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
 
     }
 
-    /* cout << "Made device I think" << endl; */
     /* torch::Tensor output = torch::randn(v, options); */
     pair<torch::Tensor, torch::Tensor> output(output_real, output_imag);
     return output;
@@ -149,19 +138,13 @@ inline int get_num_channels(const SO3partArray&x){
 
 void sampleprint(){
     SO3partArray cpu_array({3}, 2, 2, fill::ones, 0);
-    /* cout << "cpu_array" << endl; */
-    /* cout << cpu_array << endl; */
     SO3partArray gpu_array({3}, 2, 2, fill::ones, 1);
-    /* cout << "gpu_array" << endl; */
-    /* cout << gpu_array << endl; */
 }
-
-
 
 
 inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& x, const SO3partArray& y){
     int l = output.getl();
-    output += CGproduct(x, y, l);
+    add_cellwise<SO3part_CGproduct>(output, x, y);
 }
 
 /* inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){ */
@@ -194,3 +177,8 @@ inline vector<int> estimate_num_products(const vector<int>& types_one, const vec
     }
     return v;
 }
+
+/* inline void rotate_SO3partArray(const SO3partArray&x, const double phi, const double theta, const double psi){ */
+/*     SO3element r(phi, theta, psi); */
+/*     x.rotate(r); */
+/* } */

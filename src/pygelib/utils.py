@@ -38,7 +38,7 @@ def move_to_end(x, dim):
     return x.permute(permute_indices)
 
 
-def _initialize_in_SO3part_view(shape, init_fxn, cell_index=1, padding_multiple=32):
+def _initialize_in_SO3part_view(shape, init_fxn, cell_index=-2, padding_multiple=32):
     adims = tuple(shape[:cell_index])  # Indices of cells
     cdims = tuple(shape[cell_index:])  # Indices inside a cell
     flattened_cdims = np.prod(cdims)
@@ -64,34 +64,42 @@ def _get_expanded_strides(adims, cdims, padded_cdim_size):
     return tuple(reverse_strides[::-1])
 
 
-def _convert_to_SO3part_view(tensor, cell_index=1, padding_multiple=32):
+def _convert_to_SO3part_view(tensor, cell_index=-2, padding_multiple=32):
     """
     Converts a tensor corresponding to an SO3part into a view that is acceptable
     by GElib.
     """
-    stride = tensor.stride()
+    beginning_strides = tensor.stride()[:cell_index]
 
     is_in_acceptable_view = True
-    for i in range(cell_index):
-        if (stride[i] % padding_multiple != 0):
+    for i, stride in enumerate(beginning_strides):
+        if (stride % padding_multiple != 0):
             is_in_acceptable_view = False
             break
 
     if is_in_acceptable_view:
         return tensor
     else:
-        tensor.contiguous()
-        return _copy_into_SO3part_view(tensor, cell_index, padding_multiple)
+        print('making contiguous')
+        # tensor = tensor.contiguous()
+        print('calling _copy_into_SO3part_view')
+        return _copy_into_SO3part_view(tensor.contiguous(), cell_index, padding_multiple)
 
 
-def _copy_into_SO3part_view(tensor, cell_index=1, padding_multiple=32):
+def _copy_into_SO3part_view(tensor, cell_index=-2, padding_multiple=32):
     shape = tensor.shape
+    if cell_index < 0:
+        cell_index = len(shape) + cell_index
     adims = shape[:cell_index]  # Indices of cells
     cdims = shape[cell_index:]  # Indices inside a cell
 
     # Flatten indices in the cell.
     flattened_cdims = np.prod(cdims)
     old_flat_shape = adims + (flattened_cdims,)
+    print(tensor.shape, old_flat_shape)
+    print(tensor.stride())
+
+    print(tensor.contiguous().stride())
     flat_tensor = tensor.view(old_flat_shape)
 
     # Pad tensor so cell shapes are multiple of padding_multiple

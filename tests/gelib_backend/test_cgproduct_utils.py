@@ -7,48 +7,64 @@ import numpy as np
 import pygelib_cpp as backend
 from pygelib.SO3VecArray import SO3VecArray
 from pygelib.CGproduct import cg_product_forward, _compute_output_shape
+from pygelib.utils import _convert_to_SO3part_view
 
 
 class TestCGProduct():
 
     @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
     @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
-    @pytest.mark.parametrize('nc_A', [2, 4, 8])
-    @pytest.mark.parametrize('nc_B', [3, 6])
-    @pytest.mark.parametrize('num_vecs', [1, 3])
-    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
-    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    @pytest.mark.parametrize('nc_A', [2, 4])
+    @pytest.mark.parametrize('num_vecs', [1, 2])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    # @pytest.mark.parametrize('device', [torch.device('cpu')])
     def test_cgproduct_reproducibility(self, lAs, lBs, nc_A,
-                                       nc_B, num_vecs, device):
+                                       num_vecs, device):
         A_tnsrs = [torch.randn(2, num_vecs, 2*l+1, nc_A, device=device) for l in lAs]
-        B_tnsrs = [torch.randn(2, num_vecs, 2*l+1, nc_B, device=device) for l in lBs]
-
+        B_tnsrs = [torch.randn(2, num_vecs, 2*l+1, 8, device=device) for l in lBs]
         A_tnsrs_copy = [torch.clone(a) for a in A_tnsrs]
         B_tnsrs_copy = [torch.clone(b) for b in B_tnsrs]
 
+        A_tnsrs = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs]
+        B_tnsrs = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs]
+
+        A_tnsrs_copy = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs_copy]
+        B_tnsrs_copy = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs_copy]
+
         A_arr = SO3VecArray(A_tnsrs)
         B_arr = SO3VecArray(B_tnsrs)
+        print("Initialized_arrays")
 
         A_arr_copy = SO3VecArray(A_tnsrs_copy)
         B_arr_copy = SO3VecArray(B_tnsrs_copy)
+        print("Initialized copied rrays")
 
         C_out = cg_product_forward(A_arr, B_arr)
         C_out_copy = cg_product_forward(A_arr_copy, B_arr_copy)
+        print("Did product")
 
         for i, j in zip(C_out, C_out_copy):
-            assert(torch.allclose(i - j, torch.zeros_like(i)))
+            assert(torch.allclose(i, j))
+            is_abnormally_large = (torch.abs(i) > 1e9).float()
+            assert(torch.allclose(is_abnormally_large, torch.zeros_like(i)))
             print(i)
         # raise Exception
 
-    @pytest.mark.parametrize('lA', [0, 1, 4])
-    @pytest.mark.parametrize('lB', [0, 1, 5])
-    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    @pytest.mark.parametrize('lA', [0, 1, 2])
+    @pytest.mark.parametrize('lB', [0, 1, 3])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    # @pytest.mark.parametrize('device', [torch.device('cpu')])
     def test_product_values(self, lA, lB, device):
-        nc_A = 32
-        nc_B = 32
+        nc_A = 4
+        nc_B = 8
 
-        A_tnsr = torch.randn(2, 1, 2*lA+1, nc_A, device=device)
-        B_tnsr = torch.randn(2, 1, 2*lB+1, nc_B, device=device)
+        num_atoms = 3
+
+        A_tnsr = torch.randn(2, num_atoms, 2*lA+1, nc_A, device=device)
+        B_tnsr = torch.randn(2, num_atoms, 2*lB+1, nc_B, device=device)
+
+        A_tnsr = _convert_to_SO3part_view(A_tnsr, -2)
+        B_tnsr = _convert_to_SO3part_view(B_tnsr, -2)
 
         A_arr = SO3VecArray(A_tnsr)
         B_arr = SO3VecArray(B_tnsr)
@@ -60,14 +76,57 @@ class TestCGProduct():
 
         for c in C_out_copy:
             l = (c.shape[2] - 1) // 2
-            c_flat = c.reshape(2, 1, c.shape[2] * c.shape[3])
+            c_flat = c.reshape(2, num_atoms, c.shape[2] * c.shape[3])
 
             c_gelib_prod = backend.partArrayCGproduct(A_gelib_prt, B_gelib_prt, l)
             c_from_gelib = backend._internal_Tensor_from_SO3partArray(c_gelib_prod)
             c_from_gelib = torch.stack(c_from_gelib, dim=0)
-            print(c_flat.shape)
 
             assert(torch.allclose(c_flat, c_from_gelib))
+
+    @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
+    @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
+    @pytest.mark.parametrize('nc_A', [2, 4])
+    @pytest.mark.parametrize('nc_B', [3, 8])
+    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    def test_cgproduct_equivariance(self, lAs, lBs, nc_A,
+                                    nc_B, device):
+
+        # Setup the input tensors....
+        A_tnsrs = [torch.randn(2, 2, 2*l+1, nc_A, device=device) for l in lAs]
+        B_tnsrs = [torch.randn(2, 2, 2*l+1, nc_B, device=device) for l in lBs]
+
+        A_tnsrs_rot = [torch.clone(a) for a in A_tnsrs]
+        B_tnsrs_rot = [torch.clone(b) for b in B_tnsrs]
+
+        # Initialize unrotated vectors
+        A_tnsrs = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs]
+        B_tnsrs = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs]
+        A_vec = SO3VecArray(A_tnsrs)
+        B_vec = SO3VecArray(B_tnsrs)
+
+        # Initialize rotated vectors
+        alpha, beta, gamma = tuple(np.random.randn(3))
+        # alpha, beta, gamma = (0., 0., 0.)
+
+        A_vec_rot = SO3VecArray(A_tnsrs_rot)
+        A_vec_rot.rotate(alpha, beta, gamma)
+        B_vec_rot = SO3VecArray(B_tnsrs_rot)
+        B_vec_rot.rotate(alpha, beta, gamma)
+        print("starting to convert rotated a")
+        A_vec_rot = SO3VecArray([_convert_to_SO3part_view(a, -2) for a in A_vec_rot])
+        print('rotating b')
+        print([a.shape for a in B_vec_rot])
+        B_vec_rot = SO3VecArray([_convert_to_SO3part_view(b, -2) for b in B_vec_rot])
+
+        CG_out_rot = cg_product_forward(A_vec, B_vec)
+        CG_out_rot.rotate(alpha, beta, gamma)
+        CG_rot_out = cg_product_forward(A_vec_rot, B_vec_rot)
+
+        for i, j in zip(CG_out_rot, CG_rot_out):
+            assert(torch.allclose(i, j))
+
 
 
 @pytest.mark.parametrize('l1_1', [1, 5])

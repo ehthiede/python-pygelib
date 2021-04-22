@@ -26,12 +26,19 @@ def cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
     else:
         output_keys, output_shapes = output_info
 
+    device = A[0].device
+
+    def init_fxn(x):
+        out = torch.zeros(x, device=device)
+        return out
+
     output_tensors = []
+    read_ls = []
     for l, shape in output_shapes.items():
         if l > lmax:
             continue
 
-        output_tensor = _initialize_in_SO3part_view(shape, torch.zeros, A.rdim)
+        output_tensor = _initialize_in_SO3part_view(shape, init_fxn, A.rdim)
         block_start = 0  # Start index of next block
         for part_A in A:
             l_A = (part_A.shape[A.rdim] - 1) // 2
@@ -43,11 +50,16 @@ def cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
 
                     block_end = block_start + output_keys[(l_A, l_B, l)]
                     block = output_tensor[..., block_start:block_end]
+                    # block = output_tensor
                     block_prt = pcpp._internal_SO3partArray_from_Tensor(block[0], block[1])
                     pcpp.add_in_partArrayCGproduct(block_prt, part_A_prt, part_B_prt)
                     block_start = block_end
 
         output_tensors.append(output_tensor)
+        read_ls.append(l)
+
+    idx = np.argsort(read_ls)
+    output_tensors = [output_tensors[i] for i in idx]
     return SO3VecArray(output_tensors)
 
 

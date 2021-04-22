@@ -45,9 +45,23 @@ class TestConversion():
         viewed_tensors = utils._convert_to_SO3part_view(tensor, cell_index)
         assert(torch.allclose(tensor, viewed_tensors))
 
+    @pytest.mark.parametrize('shapes_and_strides', [((3, 5, 31), 1, (160, 31, 1)),
+                                                    ((4, 32), 1, (32, 1)),
+                                                    ((2, 2, 33,), 2, (128, 64, 1)),
+                                                    ((2, 3, 5, 3), -2, (96, 32, 3, 1))])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    def test_strides_are_correct(self, shapes_and_strides, device):
+        in_shape, cell_index, correct_strides = shapes_and_strides
+        tensor = torch.randn(in_shape, device=device)
+        viewed_tensors = utils._convert_to_SO3part_view(tensor, cell_index)
+        out_strides = viewed_tensors.stride()
+
+        assert(out_strides == correct_strides)
+
     @pytest.mark.parametrize('shapes', [((6, 5, 2, 32), 2),
                                         ((6, 5, 2, 30), 2),
                                         ((5, 3, 33), 1),
+                                        ((5, 3, 33), -2),
                                         ])
     def test_init_strides_after_view(self, shapes):
         shape, cell_index = shapes

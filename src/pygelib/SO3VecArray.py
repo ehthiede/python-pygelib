@@ -78,13 +78,21 @@ class SO3VecArray(SO3TensorArray):
         dtype = self._data[0].dtype
         device = self._data[0].device
 
-        Dlist = WignerD_list(alpha, beta, gamma, dtype, device)
+        ells = self.ells
+        jmax = np.max(ells)
+
+        Dlist = WignerD_list(jmax, alpha, beta, gamma, dtype, device)
 
         new_data = []
-        for i, (part, Dmat) in enumerate(zip(self._data, Dlist)):
-            new_part = move_to_end(part, self.rdim)
+        # for i, (part, Dmat) in enumerate(zip(self._data, Dlist)):
+        for (l, part) in zip(ells, self._data):
+            Dmat = Dlist[l]
+            rdim = self.rdim
+            if rdim < 0:
+                rdim = len(part.shape) + rdim
+            new_part = move_to_end(part, rdim)
             new_part = torch.matmul(new_part, Dmat)
-            new_data.append(move_from_end(new_part, self.rdim))
+            new_data.append(move_from_end(new_part, rdim))
         self._data = new_data
 
 

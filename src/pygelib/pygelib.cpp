@@ -9,11 +9,15 @@ using namespace cnine;
 using namespace GElib;
 typedef CtensorObj Ctensor;
 
+// GElib dependencies
 /* #include "_SO3part.hpp" */
 /* #include "_Ctensor.hpp" */
-#include "_SO3partArray.hpp"
 #include "SO3partArrayA.hpp"
 #include "SO3partArray.hpp"
+#include "SO3element.hpp"
+
+// Python Interface Codes
+#include "_SO3partArray.hpp"
 
 
 //CGpowerOp CGpowerOpPy_init(vector< vector<at::Tensor> > x, const int k){
@@ -50,6 +54,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("sum_SO3partArrays_inplace", &sum_SO3partArrays_inplace, "Sum two SO3 part arrays in place");
   m.def("partArrayCGproduct", &partArrayCGproduct, "Performs a CG product of two parts");
   m.def("add_in_partArrayCGproduct", &add_in_partArrayCGproduct, "Construct and print an SO3partArray");
+  /* m.def("rotate_SO3partArray", &rotate_SO3partArray, "Rotate an SO3partArray"); */
+
   /* m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray"); */
   /* m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray"); */
 

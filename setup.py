@@ -43,10 +43,12 @@ def get_extensions(extensions_dir, extension_name):
     source_cpu = glob(join(extensions_dir, "cpu", "*.cpp"))
     source_cuda = glob(join(extensions_dir, "cuda", "*.cu"))
     cnine_cuda_ops = glob(join(this_dir, "backend/cnine/v1/cuda", "*.cu"))
-    gelib_cuda_ops = glob(join(this_dir, "backend/GElib/v2/cuda", "*.cu"))
+    # gelib_cuda_ops = glob(join(this_dir, "backend/GElib/v2/cuda", "*.cu"))
+    # gelib_cuda_ops = join(this_dir, "backend/GElib/v2/cuda", "*.cu"))
 
-    sources = main_file + source_cpu + cnine_cuda_ops + gelib_cuda_ops
+    sources = main_file + source_cpu + cnine_cuda_ops  # + gelib_cuda_ops
     sources.append(join(this_dir, "backend/cnine/v1/include/Cnine_base.cu"))
+    sources.append(join(this_dir, "backend/GElib/v2/cuda/SO3partA_CGproduct.cu"))
     extension = CppExtension
 
     extra_compile_args = {"cxx": ["-lstdc++", "-lm", "-lpthread", "-D_WITH_CUBLAS", "-lcublas", "-D_WITH_CUDA", "-Wno-sign-compare", "-Wno-unused-variable", "-Wno-reorder", "-Wno-deprecated-declarations", "-lcudadevrt"]}
