@@ -1,7 +1,9 @@
-// Additional routines for interfacing with pytorch.
+// Typedefs for convenience.
 typedef SO3partA_CGproduct_cop SO3part_CGproduct;
+typedef SO3partA_CGproduct_back0_cop SO3part_CGproduct_back0;
+typedef SO3partA_CGproduct_back1_cop SO3part_CGproduct_back1;
 
-
+// Routines for torch / GElib interface.
 SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Tensor& x_imag){
     /* AT_ASSERT(x_real.dim() == 2,"SO3parts must be two-dimensional"); */
     int dev_real = int(x_real.type().is_cuda());
@@ -41,7 +43,7 @@ SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Te
     }
     else{
         output.arrg = x_real.data<float>();
-        /* output.arrgc = x_imag.data<float>(); */
+        output.arrgc = x_imag.data<float>();
     }
     return output;
 }
@@ -111,8 +113,6 @@ pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partar
     /* torch::Tensor output = torch::randn(v, options); */
     pair<torch::Tensor, torch::Tensor> output(output_real, output_imag);
     return output;
-
-    /* return torch::CPU(at::kFloat).tensorFromBlob(arr,v, [](void* data){delete reinterpret_cast<TYPE*>(data);}); */
 }
 
 // Utility functions for introspecting SO3partArrays
@@ -136,33 +136,20 @@ inline int get_num_channels(const SO3partArray&x){
     return x.cdims[size-1];
 }
 
-void sampleprint(){
-    SO3partArray cpu_array({3}, 2, 2, fill::ones, 0);
-    SO3partArray gpu_array({3}, 2, 2, fill::ones, 1);
-}
-
-
-inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& x, const SO3partArray& y){
+// CG Product Routines
+inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& x, const SO3partArray& y, const int offset){
     int l = output.getl();
-    add_cellwise<SO3part_CGproduct>(output, x, y);
+    add_cellwise<SO3part_CGproduct>(output, x, y, offset);
 }
 
-/* inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){ */
-/*     int l = output.getl(); */
-/*     output.add_CGproduct_back0(other, x, l); */
-/* } */
-
-/* inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& x, const SO3partArray& other){ */
-/*     int l = output.getl(); */
-/*     output.add_CGproduct_back1(x, other, l); */
-/* } */
-
-inline void sum_SO3partArrays_inplace(SO3partArray& x, const SO3partArray& y){
-    x += y;
+inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& y, const int offset){
+    int l = output.getl();
+    add_cellwise<SO3part_CGproduct_back0>(output, x, y, offset);
 }
 
-inline SO3partArray partArrayCGproduct(const SO3partArray& x, const SO3partArray& y, const int l){
-    return CGproduct(x, y, l);
+inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& x, const SO3partArray& y, const int offset){
+    int l = output.getl();
+    add_cellwise<SO3part_CGproduct_back1>(output, x, y, offset);
 }
 
 inline vector<int> estimate_num_products(const vector<int>& types_one, const vector<int>& types_two){
@@ -178,7 +165,25 @@ inline vector<int> estimate_num_products(const vector<int>& types_one, const vec
     return v;
 }
 
-/* inline void rotate_SO3partArray(const SO3partArray&x, const double phi, const double theta, const double psi){ */
+// Miscellaneous and Testing Routines
+inline SO3partArray partArrayCGproduct(const SO3partArray& x, const SO3partArray& y, const int l){
+    return CGproduct(x, y, l);
+}
+
+
+void sampleprint(){
+    SO3partArray cpu_array({3}, 2, 2, fill::ones, 0);
+    SO3partArray gpu_array({3}, 2, 2, fill::ones, 1);
+}
+
+
+
+inline void sum_SO3partArrays_inplace(SO3partArray& x, const SO3partArray& y){
+    x += y;
+}
+
+
+/* inline void rotate_SO3partArray(SO3partArray&x, const double phi, const double theta, const double psi){ */
 /*     SO3element r(phi, theta, psi); */
 /*     x.rotate(r); */
 /* } */

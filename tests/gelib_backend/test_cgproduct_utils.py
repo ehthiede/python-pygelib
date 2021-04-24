@@ -11,7 +11,6 @@ from pygelib.utils import _convert_to_SO3part_view
 
 
 class TestCGProduct():
-
     @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
     @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
     @pytest.mark.parametrize('nc_A', [2, 4])
@@ -20,6 +19,7 @@ class TestCGProduct():
     # @pytest.mark.parametrize('device', [torch.device('cpu')])
     def test_cgproduct_reproducibility(self, lAs, lBs, nc_A,
                                        num_vecs, device):
+
         A_tnsrs = [torch.randn(2, num_vecs, 2*l+1, nc_A, device=device) for l in lAs]
         B_tnsrs = [torch.randn(2, num_vecs, 2*l+1, 8, device=device) for l in lBs]
         A_tnsrs_copy = [torch.clone(a) for a in A_tnsrs]
@@ -33,21 +33,17 @@ class TestCGProduct():
 
         A_arr = SO3VecArray(A_tnsrs)
         B_arr = SO3VecArray(B_tnsrs)
-        print("Initialized_arrays")
 
         A_arr_copy = SO3VecArray(A_tnsrs_copy)
         B_arr_copy = SO3VecArray(B_tnsrs_copy)
-        print("Initialized copied rrays")
 
         C_out = cg_product_forward(A_arr, B_arr)
         C_out_copy = cg_product_forward(A_arr_copy, B_arr_copy)
-        print("Did product")
 
         for i, j in zip(C_out, C_out_copy):
             assert(torch.allclose(i, j))
             is_abnormally_large = (torch.abs(i) > 1e9).float()
             assert(torch.allclose(is_abnormally_large, torch.zeros_like(i)))
-            print(i)
         # raise Exception
 
     @pytest.mark.parametrize('lA', [0, 1, 2])
@@ -84,18 +80,17 @@ class TestCGProduct():
 
             assert(torch.allclose(c_flat, c_from_gelib))
 
-    @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
-    @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
+    @pytest.mark.parametrize('lAs', [(0, 1, 3), (2,)])
+    @pytest.mark.parametrize('lBs', [(2, 3), (0, 1)])
     @pytest.mark.parametrize('nc_A', [2, 4])
     @pytest.mark.parametrize('nc_B', [3, 8])
-    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
-    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
     def test_cgproduct_equivariance(self, lAs, lBs, nc_A,
                                     nc_B, device):
 
         # Setup the input tensors....
-        A_tnsrs = [torch.randn(2, 2, 2*l+1, nc_A, device=device) for l in lAs]
-        B_tnsrs = [torch.randn(2, 2, 2*l+1, nc_B, device=device) for l in lBs]
+        A_tnsrs = [torch.randn(2, 1, 2*l+1, nc_A, device=device) for l in lAs]
+        B_tnsrs = [torch.randn(2, 1, 2*l+1, nc_B, device=device) for l in lBs]
 
         A_tnsrs_rot = [torch.clone(a) for a in A_tnsrs]
         B_tnsrs_rot = [torch.clone(b) for b in B_tnsrs]
@@ -114,19 +109,16 @@ class TestCGProduct():
         A_vec_rot.rotate(alpha, beta, gamma)
         B_vec_rot = SO3VecArray(B_tnsrs_rot)
         B_vec_rot.rotate(alpha, beta, gamma)
-        print("starting to convert rotated a")
         A_vec_rot = SO3VecArray([_convert_to_SO3part_view(a, -2) for a in A_vec_rot])
-        print('rotating b')
-        print([a.shape for a in B_vec_rot])
         B_vec_rot = SO3VecArray([_convert_to_SO3part_view(b, -2) for b in B_vec_rot])
 
         CG_out_rot = cg_product_forward(A_vec, B_vec)
         CG_out_rot.rotate(alpha, beta, gamma)
         CG_rot_out = cg_product_forward(A_vec_rot, B_vec_rot)
+        # raise Exception
 
         for i, j in zip(CG_out_rot, CG_rot_out):
-            assert(torch.allclose(i, j))
-
+            assert(torch.allclose(i, j, atol=1e-5))
 
 
 @pytest.mark.parametrize('l1_1', [1, 5])
