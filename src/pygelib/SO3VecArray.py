@@ -41,12 +41,7 @@ class SO3VecArray(SO3TensorArray):
 
     @property
     def ells(self):
-        ls = []
-        for shape in self.shapes:
-            rshape = shape[self.rdim]
-            assert(rshape % 2 == 1), "Rotational dimension is not odd!"
-            ls.append((shape[self.rdim] - 1)//2)
-        return ls
+        return _get_ells(self, self.rdim)
 
     @property
     def channels(self):
@@ -58,21 +53,11 @@ class SO3VecArray(SO3TensorArray):
 
     @property
     def adims(self):
-        arr_shapes = []
-        for shape in self.shapes:
-            new_shape = list(deepcopy(shape))
-            del new_shape[self._rdim]
-            # Remove first (complex) and last (channel) dimensions
-            arr_shapes.append(tuple(new_shape[1:-1]))
-        return arr_shapes
+        return _get_adims(self, self.rdim)
 
     @property
     def fragment_dict(self):
-        fragment_dict = {}
-        for shape in self.shapes:
-            l = (shape[self.rdim] - 1)//2
-            fragment_dict[l] = shape[-1]
-        return fragment_dict
+        return _get_fragment_dict(self, self.rdim)
 
     def rotate(self, alpha, beta, gamma):
         dtype = self._data[0].dtype
@@ -81,10 +66,7 @@ class SO3VecArray(SO3TensorArray):
         ells = self.ells
         jmax = np.max(ells)
 
-        print(ells, jmax)
-
         Dlist = WignerD_list(jmax, alpha, beta, gamma, dtype, device)
-        print([d.shape for d in Dlist])
 
         new_data = []
         # for i, (part, Dmat) in enumerate(zip(self._data, Dlist)):
@@ -232,8 +214,35 @@ def rep_to_pos(rep):
     return pos
 
 
-# ~~~ Conversion routines to the internal SO3partArray representations ~~~ #
+# ~~~ Routines for introspection ~~~ #
+def _get_ells(tensor_iterable, rdim=-2):
+    ls = []
+    for t in tensor_iterable:
+        rshape = t.shape[rdim]
+        assert(rshape % 2 == 1), "Rotational dimension is not odd!"
+        ls.append((t.shape[rdim] - 1)//2)
+    return ls
 
+
+def _get_fragment_dict(tensor_iterable, rdim=-2):
+    fragment_dict = {}
+    for t in tensor_iterable:
+        l = (t.shape[rdim] - 1)//2
+        fragment_dict[l] = t.shape[-1]
+    return fragment_dict
+
+
+def _get_adims(tensor_iterable, rdim=-2):
+    arr_shapes = []
+    for t in tensor_iterable:
+        new_shape = list(deepcopy(t.shape))
+        del new_shape[rdim]
+        # Remove first (complex) and last (channel) dimensions
+        arr_shapes.append(tuple(new_shape[1:-1]))
+    return arr_shapes
+
+
+# ~~~ Conversion routines to the internal SO3partArray representations ~~~ #
 def _convert_to_GELib(x, padding_multiple=32):
     """
     Converts an SO3vecArray into a collection of GElib Tensors.

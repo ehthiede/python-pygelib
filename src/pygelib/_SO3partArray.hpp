@@ -142,14 +142,14 @@ inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& 
     add_cellwise<SO3part_CGproduct>(output, x, y, offset);
 }
 
-inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& x, const SO3partArray& y, const int offset){
+inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& dy, const SO3partArray& b, const int offset){
     int l = output.getl();
-    add_cellwise<SO3part_CGproduct_back0>(output, x, y, offset);
+    add_cellwise<SO3part_CGproduct_back0>(output, dy, b, offset);
 }
 
-inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& x, const SO3partArray& y, const int offset){
+inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& dy, const SO3partArray& a, const int offset){
     int l = output.getl();
-    add_cellwise<SO3part_CGproduct_back1>(output, x, y, offset);
+    add_cellwise<SO3part_CGproduct_back1>(output, dy, a, offset);
 }
 
 inline vector<int> estimate_num_products(const vector<int>& types_one, const vector<int>& types_two){

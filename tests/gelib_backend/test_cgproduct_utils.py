@@ -6,11 +6,11 @@ import torch
 import numpy as np
 import pygelib_cpp as backend
 from pygelib.SO3VecArray import SO3VecArray
-from pygelib.CGproduct import cg_product_forward, _compute_output_shape
+from pygelib.CGproduct import _cg_product_forward, _compute_output_shape
 from pygelib.utils import _convert_to_SO3part_view
 
 
-class TestCGProduct():
+class TestCGProductBackend():
     @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
     @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
     @pytest.mark.parametrize('nc_A', [2, 4])
@@ -31,20 +31,19 @@ class TestCGProduct():
         A_tnsrs_copy = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs_copy]
         B_tnsrs_copy = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs_copy]
 
-        A_arr = SO3VecArray(A_tnsrs)
-        B_arr = SO3VecArray(B_tnsrs)
+        A_arr = A_tnsrs
+        B_arr = B_tnsrs
 
-        A_arr_copy = SO3VecArray(A_tnsrs_copy)
-        B_arr_copy = SO3VecArray(B_tnsrs_copy)
+        A_arr_copy = A_tnsrs_copy
+        B_arr_copy = B_tnsrs_copy
 
-        C_out = cg_product_forward(A_arr, B_arr)
-        C_out_copy = cg_product_forward(A_arr_copy, B_arr_copy)
+        C_out = _cg_product_forward(A_arr, B_arr)
+        C_out_copy = _cg_product_forward(A_arr_copy, B_arr_copy)
 
         for i, j in zip(C_out, C_out_copy):
             assert(torch.allclose(i, j))
             is_abnormally_large = (torch.abs(i) > 1e9).float()
             assert(torch.allclose(is_abnormally_large, torch.zeros_like(i)))
-        # raise Exception
 
     @pytest.mark.parametrize('lA', [0, 1, 2])
     @pytest.mark.parametrize('lB', [0, 1, 3])
@@ -62,10 +61,10 @@ class TestCGProduct():
         A_tnsr = _convert_to_SO3part_view(A_tnsr, -2)
         B_tnsr = _convert_to_SO3part_view(B_tnsr, -2)
 
-        A_arr = SO3VecArray(A_tnsr)
-        B_arr = SO3VecArray(B_tnsr)
+        A_arr = [A_tnsr]
+        B_arr = [B_tnsr]
 
-        C_out_copy = cg_product_forward(A_arr, B_arr)
+        C_out_copy = _cg_product_forward(A_arr, B_arr)
 
         A_gelib_prt = backend._internal_SO3partArray_from_Tensor(A_tnsr[0], A_tnsr[1])
         B_gelib_prt = backend._internal_SO3partArray_from_Tensor(B_tnsr[0], B_tnsr[1])
@@ -98,13 +97,13 @@ class TestCGProduct():
         # Initialize unrotated vectors
         A_tnsrs = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs]
         B_tnsrs = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs]
-        A_vec = SO3VecArray(A_tnsrs)
-        B_vec = SO3VecArray(B_tnsrs)
+        A_vec = A_tnsrs
+        B_vec = B_tnsrs
 
         # Initialize rotated vectors
         alpha, beta, gamma = tuple(np.random.randn(3))
-        # alpha, beta, gamma = (0., 0., 0.)
 
+        # Typecast to SO3VecArray for easy rotations
         A_vec_rot = SO3VecArray(A_tnsrs_rot)
         A_vec_rot.rotate(alpha, beta, gamma)
         B_vec_rot = SO3VecArray(B_tnsrs_rot)
@@ -112,10 +111,9 @@ class TestCGProduct():
         A_vec_rot = SO3VecArray([_convert_to_SO3part_view(a, -2) for a in A_vec_rot])
         B_vec_rot = SO3VecArray([_convert_to_SO3part_view(b, -2) for b in B_vec_rot])
 
-        CG_out_rot = cg_product_forward(A_vec, B_vec)
+        CG_out_rot = SO3VecArray(_cg_product_forward(A_vec, B_vec))
         CG_out_rot.rotate(alpha, beta, gamma)
-        CG_rot_out = cg_product_forward(A_vec_rot, B_vec_rot)
-        # raise Exception
+        CG_rot_out = _cg_product_forward(A_vec_rot, B_vec_rot)
 
         for i, j in zip(CG_out_rot, CG_rot_out):
             assert(torch.allclose(i, j, atol=1e-5))
@@ -132,11 +130,11 @@ def test_compute_output_shape(l1_1, l1_2, l2_1, l2_2):
     # Perform the calculation in the frontend
     a_part_1 = torch.randn(2, 1, 2 * l1_1 + 1, 8)
     a_part_2 = torch.randn(2, 1, 2 * l1_2 + 1, 16)
-    a = SO3VecArray([a_part_1, a_part_2])
+    a = [a_part_1, a_part_2]
 
     b_part_1 = torch.randn(2, 1, 2 * l2_1 + 1, 4)
     b_part_2 = torch.randn(2, 1, 2 * l2_2 + 1, 8)
-    b = SO3VecArray([b_part_1, b_part_2])
+    b = [b_part_1, b_part_2]
     output_keys, predicted_shapes = _compute_output_shape(a, b)
 
     # Perform the calculation in GElib
