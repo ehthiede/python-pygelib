@@ -6,11 +6,41 @@ import torch
 import numpy as np
 import pygelib_cpp as backend
 from pygelib.SO3VecArray import SO3VecArray
-from pygelib.CGproduct import _cg_product_forward, _compute_output_shape
+from pygelib.CGproduct import _cg_product_forward, _compute_output_shape, _raw_cg_product
 from pygelib.utils import _convert_to_SO3part_view
 
 
 class TestCGProductBackend():
+    @pytest.mark.parametrize('lAs', [(0, 1), (2,)])
+    @pytest.mark.parametrize('lBs', [(0, 1, 3)])
+    @pytest.mark.parametrize('num_vecs', [1, 2])
+    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    # @pytest.mark.parametrize('device', [torch.device('cuda')])
+    def test_cgproduct_backward_A(self, lAs, lBs, num_vecs, device):
+        A_tnsrs = tuple([torch.randn(2, num_vecs, 2*l+1, 2, device=device) for l in lAs])
+        B_tnsrs = tuple([torch.randn(2, num_vecs, 2*l+1, 3, device=device) for l in lBs])
+
+        A_tnsrs = [_convert_to_SO3part_view(a, -2) for a in A_tnsrs]
+        B_tnsrs = [_convert_to_SO3part_view(b, -2) for b in B_tnsrs]
+
+        for A in A_tnsrs:
+            A.requires_grad = True
+
+        tensors = A_tnsrs + B_tnsrs
+
+        num_A = len(A_tnsrs)
+        output_info = _compute_output_shape(A_tnsrs, B_tnsrs)
+
+        def wrapped_cgproduct(*all_tensors):
+            return _raw_cg_product.apply(num_A, output_info, 0, None, *all_tensors)
+
+        # print([t for t in tensors])
+        passed_test = torch.autograd.gradcheck(wrapped_cgproduct, tuple(tensors), eps=1e-3, atol=1e-3, rtol=1e-3)
+
+        assert(passed_test)
+
+
     @pytest.mark.parametrize('lAs', [(0, 1, 4), (2,)])
     @pytest.mark.parametrize('lBs', [(3, 5), (0, 1)])
     @pytest.mark.parametrize('nc_A', [2, 4])

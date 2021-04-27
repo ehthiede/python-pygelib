@@ -58,6 +58,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("add_in_partArrayCGproduct", &add_in_partArrayCGproduct, "Construct and print an SO3partArray");
   m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray");
   m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray");
+  m.def("test_partArrayCGproduct_back0", &test_partArrayCGproduct_back0, "Construct and print an SO3partArray");
   /* m.def("rotate_SO3partArray", &rotate_SO3partArray, "Rotate an SO3partArray"); */
 
   /* m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray"); */

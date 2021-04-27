@@ -144,12 +144,34 @@ inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& 
 
 inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& dy, const SO3partArray& b, const int offset){
     int l = output.getl();
+    /* cout << "output:" << output.str("") << endl; */
+    /* cout << "dy:" << dy.str("") << endl; */
+    /* cout << "b:" << b.str("") << endl; */
+    /* cout << "offset:" << offset << endl; */
     add_cellwise<SO3part_CGproduct_back0>(output, dy, b, offset);
 }
 
 inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& dy, const SO3partArray& a, const int offset){
     int l = output.getl();
+    /* cout << "output:" << output.str("") << endl; */
+    /* cout << "dy:" << dy.str("") << endl; */
+    /* cout << "a:" << a.str("") << endl; */
+    /* cout << "offset:" << offset << endl; */
     add_cellwise<SO3part_CGproduct_back1>(output, dy, a, offset);
+}
+
+inline void test_partArrayCGproduct_back0(){
+    SO3partArray output({2}, 0, 2, fill::zero, 1);
+    SO3partArray dy({2}, 0, 6, fill::ones, 1);
+    SO3partArray b({2}, 0, 3, fill::gaussian, 1);
+    int offset = 0;
+    /* cout << "output:" << output.str("") << endl; */
+    /* cout << "dy:" << dy.str("") << endl; */
+    /* cout << "b:" << b.str("") << endl; */
+    /* cout << "offset:" << offset << endl; */
+    /* cout << "Starting product......" << endl; */
+    add_cellwise<SO3part_CGproduct_back0>(output, dy, b, offset);
+    /* cout << "Post call:" << endl; */
 }
 
 inline vector<int> estimate_num_products(const vector<int>& types_one, const vector<int>& types_two){

@@ -80,9 +80,9 @@ def _convert_to_SO3part_view(tensor, cell_index=-2, padding_multiple=32):
     if is_in_acceptable_view:
         return tensor
     else:
-        print('making contiguous')
+        # print('making contiguous')
         # tensor = tensor.contiguous()
-        print('calling _copy_into_SO3part_view')
+        # print('calling _copy_into_SO3part_view')
         return _copy_into_SO3part_view(tensor.contiguous(), cell_index, padding_multiple)
 
 
@@ -96,10 +96,9 @@ def _copy_into_SO3part_view(tensor, cell_index=-2, padding_multiple=32):
     # Flatten indices in the cell.
     flattened_cdims = np.prod(cdims)
     old_flat_shape = adims + (flattened_cdims,)
-    print(tensor.shape, old_flat_shape)
-    print(tensor.stride())
-
-    print(tensor.contiguous().stride())
+    # print(tensor.shape, old_flat_shape)
+    # print(tensor.stride())
+    # print(tensor.contiguous().stride())
     flat_tensor = tensor.view(old_flat_shape)
 
     # Pad tensor so cell shapes are multiple of padding_multiple

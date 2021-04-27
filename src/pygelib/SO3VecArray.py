@@ -28,7 +28,7 @@ class SO3VecArray(SO3TensorArray):
         if isinstance(data, type(self)):
             self._data = data._data
         elif isinstance(data, torch.Tensor):
-            print("recognizing as tensor!")
+            # print("recognizing as tensor!")
             self._data = [data]
         else:
             self._data = list(data)
@@ -71,14 +71,14 @@ class SO3VecArray(SO3TensorArray):
         new_data = []
         # for i, (part, Dmat) in enumerate(zip(self._data, Dlist)):
         for (l, part) in zip(ells, self._data):
-            print(l)
+            # print(l)
             Dmat = Dlist[l]
-            print(Dmat.shape)
+            # print(Dmat.shape)
             rdim = self.rdim
             if rdim < 0:
                 rdim = len(part.shape) + rdim
             new_part = move_to_end(part, rdim)
-            print(new_part.shape)
+            # print(new_part.shape)
             # Real part
             out_r = torch.matmul(new_part[0], Dmat[0]) - torch.matmul(new_part[1], Dmat[1])
             out_c = torch.matmul(new_part[0], Dmat[1]) + torch.matmul(new_part[1], Dmat[0])
