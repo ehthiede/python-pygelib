@@ -1,7 +1,9 @@
-from pygelib.CGproduct import _raw_cg_product, _compute_output_shape, CGProduct
+from pygelib.CG_routines import _raw_cg_product, _compute_output_shape
+from pygelib.Layers import CGProduct, Linear
 from pygelib.utils import _convert_to_SO3part_view
 from pygelib.SO3VecArray import SO3VecArray
 import pytest
+import numpy as np
 import torch
 
 
@@ -61,3 +63,35 @@ class TestCGProduct():
 
         for b_i, b_j in zip(B_tnsrs, B_tnsrs_copy):
             assert(torch.allclose(b_i.grad, b_j.grad))
+
+
+class TestLinear():
+    @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
+    @pytest.mark.parametrize('nc', [1, 4])
+    @pytest.mark.parametrize('nc_out', [1, 4])
+    @pytest.mark.parametrize('num_vecs', [1, 2])
+    @pytest.mark.parametrize('ells', [(0, 1), (2,), (1, 3, 4)])
+    def test_equivariance(self, ells, num_vecs, nc, nc_out, device):
+        X = [torch.randn(2, 1, 2*l+1, nc, device=device) for l in ells]
+
+        X_rot = [torch.clone(a) for a in X]
+
+        X = SO3VecArray(X)
+        X_rot = SO3VecArray(X_rot)
+
+        alpha, beta, gamma = tuple(np.random.randn(3))
+        X_rot.rotate(alpha, beta, gamma)
+
+        l_dict = {l: (nc, nc_out) for l in ells}
+        lin = Linear(l_dict)
+        lin.to(device)
+
+        X_out_rot = lin(X)
+        X_out_rot.rotate(alpha, beta, gamma)
+
+        X_rot_out = lin(X_rot)
+
+        for x, y in zip(X_out_rot, X_rot_out):
+            print(torch.max(torch.abs(x - y)))
+            assert(torch.allclose(x, y, atol=1e-6))
+

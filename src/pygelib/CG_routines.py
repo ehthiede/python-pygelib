@@ -6,20 +6,6 @@ from pygelib.utils import _initialize_in_SO3part_view, _convert_to_SO3part_view
 from pygelib.SO3VecArray import SO3VecArray, _get_fragment_dict, _get_adims
 
 
-class CGProduct(torch.nn.Module):
-    """
-    Layer that performs the CG product nonlinearity on two SO3VecArray
-    """
-    def __init__(self, output_info=None, lmin=0, lmax=None):
-        super(CGProduct, self).__init__()
-        self.output_info = output_info
-        self.lmin = lmin
-        self.lmax = lmax
-
-    def forward(self, A, B):
-        return cg_product(A, B, self.output_info, self.lmin, self.lmax)
-
-
 def cg_product(A, B, output_info=None, lmin=0, lmax=None):
     """
     Forward pass for a CG product, A x B
@@ -44,8 +30,9 @@ def cg_product(A, B, output_info=None, lmin=0, lmax=None):
         SO3VecArray containing the result of the CG product
 
     """
-    A_list = [a for a in A]
-    B_list = [b for b in B]
+    # Ensure everything is in a GElib acceptable format on the backend.
+    A_list = [_convert_to_SO3part_view(a) for a in A]
+    B_list = [_convert_to_SO3part_view(b) for b in B]
 
     if output_info is None:
         output_info = _compute_output_shape(A_list, B_list, lmin, lmax)

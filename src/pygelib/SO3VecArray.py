@@ -216,11 +216,7 @@ def rep_to_pos(rep):
 
 # ~~~ Routines for introspection ~~~ #
 def _get_ells(tensor_iterable, rdim=-2):
-    ls = []
-    for t in tensor_iterable:
-        rshape = t.shape[rdim]
-        assert(rshape % 2 == 1), "Rotational dimension is not odd!"
-        ls.append((t.shape[rdim] - 1)//2)
+    ls = [_get_tensor_ell(t, rdim) for t in tensor_iterable]
     return ls
 
 
@@ -240,6 +236,13 @@ def _get_adims(tensor_iterable, rdim=-2):
         # Remove first (complex) and last (channel) dimensions
         arr_shapes.append(tuple(new_shape[1:-1]))
     return arr_shapes
+
+
+def _get_tensor_ell(t, rdim):
+    rshape = t.shape[rdim]
+    assert(rshape % 2 == 1), "Rotational dimension is not odd!"
+    l = (t.shape[rdim] - 1)//2
+    return l
 
 
 # ~~~ Conversion routines to the internal SO3partArray representations ~~~ #
