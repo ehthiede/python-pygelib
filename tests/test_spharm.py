@@ -36,7 +36,7 @@ class TestSpharmConversions:
         x_spharm = move_to_end(x_spharm, xyzdim)
         print(x_spharm.shape)
         x_spharm_rot_r = x_spharm[0] @ D[0] - x_spharm[1] @ D[1]
-        x_spharm_rot_i = x_spharm[1] @ D[0] - x_spharm[0] @ D[1]
+        x_spharm_rot_i = x_spharm[1] @ D[0] + x_spharm[0] @ D[1]
         x_spharm_rot = torch.stack([x_spharm_rot_r, x_spharm_rot_i], dim=0)
         x_spharm_rot = move_from_end(x_spharm_rot, xyzdim)
 
