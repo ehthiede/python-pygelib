@@ -107,7 +107,6 @@ class TestL1DifferenceLayer():
         node_features = torch.randn(9, 5)
 
         alpha, beta, gamma = tuple(np.random.randn(3))
-        print(pos.dtype, EulerRot(alpha, beta, gamma).dtype)
         pos_rot = pos @ EulerRot(alpha, beta, gamma)
 
         r0s = torch.tensor([1., 2.])
@@ -117,9 +116,4 @@ class TestL1DifferenceLayer():
         rep_out_rot.rotate(alpha, beta, gamma)
         rep_rot_out = layer(pos_rot, node_features, edge_idx)
 
-        print(rep_out_rot[0][0, 0].shape)
-        print(rep_rot_out[0][0, 0].shape)
-        print(rep_out_rot[0][0, 0])
-        print(rep_rot_out[0][0, 0])
-        # print(rep_rot_out[0])
         assert(torch.allclose(rep_out_rot[0], rep_rot_out[0], atol=5e-6))

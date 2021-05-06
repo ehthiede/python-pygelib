@@ -50,10 +50,6 @@ class _raw_cg_product(Function):
     @staticmethod
     # def forward(ctx, A, B, output_info=None, lmin=0, lmax=None):
     def forward(ctx, num_A, output_info, lmin, lmax, *tensors):
-        # print("---------------------------------")
-        # print("Input tensors:")
-        # for t in tensors:
-        #     print(t.shape)
         A = tensors[:num_A]
         B = tensors[num_A:]
 
@@ -67,9 +63,6 @@ class _raw_cg_product(Function):
         ctx.lmax = lmax
 
         out = _cg_product_forward(A, B, output_info, lmin, lmax)
-        # print("Output tensors:")
-        # for o in out:
-        #     print(o.shape)
         return out
 
     @staticmethod
@@ -79,10 +72,6 @@ class _raw_cg_product(Function):
         B_tensors = ctx.saved_tensors[num_A:]
         A_grad, B_grad = _cg_product_backward(A_tensors, B_tensors, grad_output, ctx.output_info, ctx.lmin, ctx.lmax)
         out_grad = list(A_grad) + list(B_grad)
-        # print("---------------------------------")
-        # print("grad tensors:")
-        # for g in out_grad:
-        #     print(g.shape)
         return None, None, None, None, *out_grad
 
 
@@ -147,7 +136,6 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
 
                     block = output_tensor
                     block_prt = pcpp._internal_SO3partArray_from_Tensor(block[0], block[1])
-                    # print(l_A, l_B, l, offset)
                     pcpp.add_in_partArrayCGproduct(block_prt, part_A_prt, part_B_prt, offset)
                     offset += output_keys[(l_A, l_B, l)]
 
@@ -230,24 +218,14 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
                 B_grad_j_gelib = pcpp._internal_SO3partArray_from_Tensor(Bgt_j[0], Bgt_j[1])
 
                 if (l_A, l_B, l_out) in output_keys.keys():
-                    print("running ", l_A, "x", l_B, "=", l_out)
                     block_end = block_start + output_keys[(l_A, l_B, l_out)]
-                    print(l_A, l_B, l_out, part_out_grad.shape, block_start, block_end)
                     grad_block = _convert_to_SO3part_view(part_out_grad[..., block_start:block_end])
-                    print("converted to view")
 
                     # Convert everything to GElib tensors
-                    print("Shapes!")
-                    print("grad block:", grad_block.shape, grad_block.stride())
-                    print("block: A_grad_i", Agt_i.shape, Agt_i.stride())
-                    print("block: B_j", part_B.shape, part_B.stride())
                     grad_block_gelib = pcpp._internal_SO3partArray_from_Tensor(grad_block[0], grad_block[1])
-                    print("made block into gelib")
 
                     pcpp.add_in_partArrayCGproduct_back0(A_grad_i_gelib, grad_block_gelib, B_j_gelib, 0)
-                    print("added in gradient 0")
-                    # pcpp.add_in_partArrayCGproduct_back1(B_grad_j_gelib, grad_block_gelib, A_i_gelib, 0)
-                    print("added in gradient 1")
+                    pcpp.add_in_partArrayCGproduct_back1(B_grad_j_gelib, grad_block_gelib, A_i_gelib, 0)
 
                     block_start = block_end
         # return SO3VecArray(A_grad_tensors), SO3VecArray(B_grad_tensors)

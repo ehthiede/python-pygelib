@@ -27,12 +27,9 @@ class L1DifferenceLayer(torch.nn.Module):
         displacement = pos[edge_idx[1]] - pos[edge_idx[0]]  # M (num edges) x 3
 
         distances = torch.linalg.norm(displacement, dim=-1)  # M
-        # print(torch.min(distances), torch.max(distances))
         bf_values = self.bf_fxn(distances, **self.bf_args)  # M x C
         bf_vecs = displacement / distances.unsqueeze(-1)
         bf_vecs = bf_vecs.unsqueeze(-1) * bf_values.unsqueeze(-2)  # M x 3 x C
-        # print("-----------------__")
-        # print(bf_vecs)
 
         # Multiply by Node Features
         nf_edge = node_features[edge_idx[1]]  # M x D
@@ -40,13 +37,7 @@ class L1DifferenceLayer(torch.nn.Module):
         bf_vecs = torch.flatten(bf_vecs, start_dim=-2)  # M x 3 x (D*C)
 
         # Scatter back to individual nodes and convert to spherical tensor.
-        # print(bf_vecs.shape, edge_idx.shape)
-        # print(edge_idx[0])
-        # print("__")
-        # print(bf_vecs)
         node_vecs = scatter(bf_vecs, edge_idx[0], dim=0)
-        # print(node_vecs)
-        print("-----------------__")
         return SO3VecArray([pos_to_rep(node_vecs, xyzdim=-2)])
 
 

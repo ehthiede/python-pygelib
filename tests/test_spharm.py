@@ -14,12 +14,10 @@ class TestSpharmConversions:
     @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
     def test_pos_to_rep_equivariance(self, shapes, device):
         tnsr_shape, xyzdim = shapes
-        print(tnsr_shape)
         # xyzdim = len(tnsr_shape) + xyzdim
 
         # Init x and its rotated version.
         x = torch.randn(tnsr_shape, device=device)
-        print(x.shape, "initial")
 
         alpha, beta, gamma = tuple(np.random.randn(3))
         rot = EulerRot(alpha, beta, gamma).to(device)
@@ -28,13 +26,10 @@ class TestSpharmConversions:
         x_rot = move_from_end(x_rot, xyzdim)
 
         x_spharm = pos_to_rep(x, xyzdim)
-        print(x_spharm.shape)
         x_rot_spharm = pos_to_rep(x_rot, xyzdim)
 
         D = WignerD(1, alpha, beta, gamma, device=device)
-        print(x_spharm.shape, D.shape, xyzdim)
         x_spharm = move_to_end(x_spharm, xyzdim)
-        print(x_spharm.shape)
         x_spharm_rot_r = x_spharm[0] @ D[0] - x_spharm[1] @ D[1]
         x_spharm_rot_i = x_spharm[1] @ D[0] + x_spharm[0] @ D[1]
         x_spharm_rot = torch.stack([x_spharm_rot_r, x_spharm_rot_i], dim=0)
