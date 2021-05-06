@@ -1,19 +1,65 @@
 from pygelib.SO3VecArray import _get_tensor_ell, SO3VecArray
+from pygelib.spharm import pos_to_rep
 from pygelib.CG_routines import cg_product
+from pygelib import utils
+from torch_scatter import scatter
 import numpy as np
 import torch
 
 
+class L1DifferenceLayer(torch.nn.Module):
+    """
+    Builds some initial L1 features.
+    """
+    def __init__(self, basis_fxn, remove_self_loops=True, **kwargs):
+        super(L1DifferenceLayer, self).__init__()
+        self.bf_args = kwargs
+        self.bf_fxn = basis_fxn
+        self.remove_self_loops = remove_self_loops
+
+    def forward(self, pos, node_features, edge_idx):
+        """
+        Constructs initial l=1 features from invariants and positions
+        """
+        # Evaluate basis functions.
+        if self.remove_self_loops:
+            edge_idx, __ = utils._prune_self_loops(edge_idx)
+        displacement = pos[edge_idx[1]] - pos[edge_idx[0]]  # M (num edges) x 3
+
+        distances = torch.linalg.norm(displacement, dim=-1)  # M
+        # print(torch.min(distances), torch.max(distances))
+        bf_values = self.bf_fxn(distances, **self.bf_args)  # M x C
+        bf_vecs = displacement / distances.unsqueeze(-1)
+        bf_vecs = bf_vecs.unsqueeze(-1) * bf_values.unsqueeze(-2)  # M x 3 x C
+        # print("-----------------__")
+        # print(bf_vecs)
+
+        # Multiply by Node Features
+        nf_edge = node_features[edge_idx[1]]  # M x D
+        bf_vecs = bf_vecs.unsqueeze(-1) * nf_edge.unsqueeze(-2).unsqueeze(-2)
+        bf_vecs = torch.flatten(bf_vecs, start_dim=-2)  # M x 3 x (D*C)
+
+        # Scatter back to individual nodes and convert to spherical tensor.
+        # print(bf_vecs.shape, edge_idx.shape)
+        # print(edge_idx[0])
+        # print("__")
+        # print(bf_vecs)
+        node_vecs = scatter(bf_vecs, edge_idx[0], dim=0)
+        # print(node_vecs)
+        print("-----------------__")
+        return SO3VecArray([pos_to_rep(node_vecs, xyzdim=-2)])
+
+
 class Linear(torch.nn.Module):
     """
-    Layer that performs a  linera mix
+    Layer that performs a linear mix
     """
-    def __init__(self, transformations):
+    def __init__(self, transformation_dict):
         super(Linear, self).__init__()
 
         self.lin_layers_real = torch.nn.ModuleDict()
         self.lin_layers_imag = torch.nn.ModuleDict()
-        for l, (c_in, c_out) in transformations.items():
+        for l, (c_in, c_out) in transformation_dict.items():
             self.lin_layers_real[str(int(l))] = torch.nn.Linear(c_in, c_out, bias=False)
             self.lin_layers_imag[str(int(l))] = torch.nn.Linear(c_in, c_out, bias=False)
 

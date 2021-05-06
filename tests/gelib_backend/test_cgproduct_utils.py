@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import pygelib_cpp as backend
 from pygelib.SO3VecArray import SO3VecArray
-from pygelib.CGproduct import _cg_product_forward, _compute_output_shape, _raw_cg_product
+from pygelib.CG_routines import _cg_product_forward, _compute_output_shape, _raw_cg_product
 from pygelib.utils import _convert_to_SO3part_view
 
 

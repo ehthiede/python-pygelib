@@ -21,6 +21,8 @@ def move_from_end(x, dim):
         Permuted tensor
     """
     N = len(x.shape)
+    if dim < 0:
+        dim = N + dim
     permute_indices = list(range(N-1))
     permute_indices.insert(dim, N-1)
     return x.permute(permute_indices)
@@ -32,6 +34,8 @@ def move_to_end(x, dim):
 
     """
     N = len(x.shape)
+    if dim < 0:
+        dim = N + dim
     permute_indices = list(range(N))
     permute_indices.remove(dim)
     permute_indices.append(dim)
@@ -118,3 +122,11 @@ def _copy_into_SO3part_view(tensor, cell_index=-2, padding_multiple=32):
     # reconstruct the original tensor as a view of the expanded tensor.
     output_tensor = torch.as_strided(padded_tensor, shape, new_strides)
     return output_tensor
+
+
+def _prune_self_loops(pair_indices, pair_vals=None):
+    is_not_self_loop = (pair_indices[0] - pair_indices[1] != 0)
+    pair_indices = pair_indices[:, is_not_self_loop]
+    if pair_vals is not None:
+        pair_vals = pair_vals[is_not_self_loop]
+    return pair_indices, pair_vals

@@ -1,7 +1,9 @@
 from pygelib.CG_routines import _raw_cg_product, _compute_output_shape
-from pygelib.Layers import CGProduct, Linear
+from pygelib.Layers import CGProduct, Linear, L1DifferenceLayer
 from pygelib.utils import _convert_to_SO3part_view
 from pygelib.SO3VecArray import SO3VecArray
+from pygelib.transforms import radial_gaussian
+from pygelib.rotations import EulerRot
 import pytest
 import numpy as np
 import torch
@@ -17,10 +19,8 @@ def _calculate_mean(tensor_list):
 class TestCGProduct():
     @pytest.mark.parametrize('lAs', [(0, 1), (2,)])
     @pytest.mark.parametrize('lBs', [(0, 1, 3), (1, 4)])
-    # @pytest.mark.parametrize('lBs', [(1,)])
     @pytest.mark.parametrize('nc_A', [1, 4])
     @pytest.mark.parametrize('num_vecs', [1, 2])
-    # @pytest.mark.parametrize('device', [torch.device('cuda')])
     @pytest.mark.parametrize('device', [torch.device('cpu')])
     def test_cgproduct_matches_raw(self, lAs, lBs, nc_A, num_vecs, device):
         A_tnsrs = [torch.randn(2, num_vecs, 2*l+1, nc_A, device=device) for l in lAs]
@@ -95,3 +95,32 @@ class TestLinear():
             print(torch.max(torch.abs(x - y)))
             assert(torch.allclose(x, y, atol=1e-6))
 
+
+class TestL1DifferenceLayer():
+    @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
+    def test_equivariance(self, device):
+        pos = torch.randn(9, 3)
+        edge_idx = torch.randint(0, 5, size=(2, 20))
+        edge_idx = torch.cat([edge_idx, torch.randint(5, 9, size=(2, 20))],
+                             dim=1)
+
+        node_features = torch.randn(9, 5)
+
+        alpha, beta, gamma = tuple(np.random.randn(3))
+        print(pos.dtype, EulerRot(alpha, beta, gamma).dtype)
+        pos_rot = pos @ EulerRot(alpha, beta, gamma)
+
+        r0s = torch.tensor([1., 2.])
+        layer = L1DifferenceLayer(radial_gaussian, r0s=r0s, alpha=0.0)
+
+        rep_out_rot = layer(pos, node_features, edge_idx)
+        rep_out_rot.rotate(alpha, beta, gamma)
+        rep_rot_out = layer(pos_rot, node_features, edge_idx)
+
+        print(rep_out_rot[0][0, 0].shape)
+        print(rep_rot_out[0][0, 0].shape)
+        print(rep_out_rot[0][0, 0])
+        print(rep_rot_out[0][0, 0])
+        # print(rep_rot_out[0])
+
+        assert(torch.allclose(rep_out_rot[0], rep_rot_out[0], atol=1e-6))

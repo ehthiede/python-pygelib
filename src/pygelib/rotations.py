@@ -96,14 +96,14 @@ def _Ry(theta):
     """
     Rotation Matrix for rotations on the y axis.
     """
-    return torch.tensor([[np.cos(theta), 0, np.sin(theta)], [0, 1, 0], [-np.sin(theta), 0, np.cos(theta)]], dtype=torch.double)
+    return torch.tensor([[np.cos(theta), 0, np.sin(theta)], [0, 1, 0], [-np.sin(theta), 0, np.cos(theta)]], dtype=torch.float)
 
 
 def _Rz(theta):
     """
     Rotation Matrix for rotations on the z axis. Syntax is the same as with Ry.
     """
-    return torch.tensor([[np.cos(theta), -np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]], dtype=torch.double)
+    return torch.tensor([[np.cos(theta), -np.sin(theta), 0], [np.sin(theta), np.cos(theta), 0], [0, 0, 1]], dtype=torch.float)
 
 
 def EulerRot(alpha, beta, gamma):
@@ -124,5 +124,4 @@ def EulerRot(alpha, beta, gamma):
     Rmat : :obj:`torch.Tensor`
         The associated rotation matrix.
     """
-    return Rz(alpha) @ Ry(beta) @ Rz(gamma)
-
+    return _Rz(alpha) @ _Ry(beta) @ _Rz(gamma)
