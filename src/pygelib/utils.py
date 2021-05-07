@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from math import ceil
 from copy import deepcopy
+from torch_sparse import spmm
 
 
 def move_from_end(x, dim):
@@ -124,3 +125,22 @@ def _prune_self_loops(pair_indices, pair_vals=None):
     if pair_vals is not None:
         pair_vals = pair_vals[is_not_self_loop]
     return pair_indices, pair_vals
+
+
+def _complex_spmm(edge_idx, edge_vals, N, x, sparse_is_real=True):
+    x_r = x[0]
+    x_i = x[1]
+    if sparse_is_real:
+        edge_vals_r = edge_vals
+    else:
+        edge_vals_r = edge_vals[0]
+        edge_vals_i = edge_vals[1]
+
+    xr_shape = x_r.shape
+    x_out_r = spmm(edge_idx, edge_vals_r, N, N, x_r.flatten(start_dim=-2))
+    x_out_i = spmm(edge_idx, edge_vals_r, N, N, x_i.flatten(start_dim=-2))
+    if not sparse_is_real:
+        x_out_r -= spmm(edge_idx, edge_vals_i, N, N, x_i.flatten(start_dim=-2))
+        x_out_i += spmm(edge_idx, edge_vals_i, N, N, x_r.flatten(start_dim=-2))
+
+    return torch.stack([x_out_r.view(xr_shape), x_out_i.view(xr_shape)], 0)

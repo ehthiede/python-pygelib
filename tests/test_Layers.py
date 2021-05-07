@@ -1,5 +1,5 @@
 from pygelib.CG_routines import _raw_cg_product, _compute_output_shape
-from pygelib.Layers import CGProduct, Linear, L1DifferenceLayer
+from pygelib.Layers import CGProduct, Linear, L1DifferenceLayer, ManyEdgeMPLayer
 from pygelib.utils import _convert_to_SO3part_view
 from pygelib.SO3VecArray import SO3VecArray
 from pygelib.transforms import radial_gaussian
@@ -72,7 +72,7 @@ class TestLinear():
     @pytest.mark.parametrize('num_vecs', [1, 2])
     @pytest.mark.parametrize('ells', [(0, 1), (2,), (1, 3, 4)])
     def test_equivariance(self, ells, num_vecs, nc, nc_out, device):
-        X = [torch.randn(2, 1, 2*l+1, nc, device=device) for l in ells]
+        X = [torch.randn(2, num_vecs, 2*l+1, nc, device=device) for l in ells]
 
         X_rot = [torch.clone(a) for a in X]
 
@@ -117,3 +117,43 @@ class TestL1DifferenceLayer():
         rep_rot_out = layer(pos_rot, node_features, edge_idx)
 
         assert(torch.allclose(rep_out_rot[0], rep_rot_out[0], atol=5e-6))
+
+
+class TestManyEdgeMPLayer():
+    @pytest.mark.parametrize('ells', [(0, 1), (2,), (1, 3, 4)])
+    @pytest.mark.parametrize('N', [4, 10])
+    @pytest.mark.parametrize('only_real', [True, False])
+    @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
+    def test_equivariance(self, ells, N, only_real, device):
+        nc = 5
+        X = [torch.randn(2, N, 2*l+1, nc, device=device) for l in ells]
+        X = SO3VecArray(X)
+        X_rot = SO3VecArray([torch.clone(a) for a in X])
+        alpha, beta, gamma = tuple(np.random.randn(3))
+
+        X_rot.rotate(alpha, beta, gamma)
+        X_rot = SO3VecArray(X_rot)
+
+        layer = ManyEdgeMPLayer(only_real)
+
+        # Build entries
+        edge_indices = []
+        for i in range(N):
+            for j in range(N):
+                if np.random.rand() > 0.5:
+                    edge_indices.append([i, j])
+        edge_idx = torch.tensor(np.array(edge_indices).T).to(device)
+        M = edge_idx.shape[1]
+
+        if only_real:
+            edge_vals = torch.randn((M, 3), device=device)
+        else:
+            edge_vals = torch.randn((2, M, 3), device=device).T
+
+        y = layer(X, edge_vals, edge_idx)
+        y.rotate(alpha, beta, gamma)
+
+        y_rot = layer(X_rot, edge_vals, edge_idx)
+
+        for u_i, v_i in zip(y, y_rot):
+            assert(torch.allclose(u_i, v_i, atol=1e-6))

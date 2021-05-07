@@ -7,6 +7,31 @@ import numpy as np
 import torch
 
 
+class ManyEdgeMPLayer(torch.nn.Module):
+    def __init__(self, real_edges=True):
+        super(ManyEdgeMPLayer, self).__init__()
+        self.real_edges = real_edges
+
+    def forward(self, X, edge_vals, edge_idx):
+        """
+        Runs forward pass of the Message passing layer.
+
+        Args:
+            x : Input tensor of node features (2 x N x
+        """
+        out_tensors = []
+        for x in X:
+            N = x.shape[1]
+            x_out_tensors = []
+            for e_j in edge_vals.unbind(-1):  # Iterate over edge channels.
+                x_out_j = utils._complex_spmm(edge_idx, e_j, N, x,
+                                              self.real_edges)
+                x_out_tensors.append(x_out_j)
+            out_tensors.append(torch.cat(x_out_tensors, dim=-1))
+
+        return SO3VecArray(out_tensors, rdim=X.rdim)
+
+
 class L1DifferenceLayer(torch.nn.Module):
     """
     Builds some initial L1 features.
