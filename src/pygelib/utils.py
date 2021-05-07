@@ -137,10 +137,10 @@ def _complex_spmm(edge_idx, edge_vals, N, x, sparse_is_real=True):
         edge_vals_i = edge_vals[1]
 
     xr_shape = x_r.shape
-    x_out_r = spmm(edge_idx, edge_vals_r, N, N, x_r.flatten(start_dim=-2))
-    x_out_i = spmm(edge_idx, edge_vals_r, N, N, x_i.flatten(start_dim=-2))
+    x_out_r = spmm(edge_idx, edge_vals_r, N, N, x_r.flatten(start_dim=1))
+    x_out_i = spmm(edge_idx, edge_vals_r, N, N, x_i.flatten(start_dim=1))
     if not sparse_is_real:
-        x_out_r -= spmm(edge_idx, edge_vals_i, N, N, x_i.flatten(start_dim=-2))
-        x_out_i += spmm(edge_idx, edge_vals_i, N, N, x_r.flatten(start_dim=-2))
+        x_out_r -= spmm(edge_idx, edge_vals_i, N, N, x_i.flatten(start_dim=1))
+        x_out_i += spmm(edge_idx, edge_vals_i, N, N, x_r.flatten(start_dim=1))
 
     return torch.stack([x_out_r.view(xr_shape), x_out_i.view(xr_shape)], 0)
