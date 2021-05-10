@@ -14,8 +14,8 @@ class TestCGProductBackend():
     @pytest.mark.parametrize('lAs', [(0, 1), (2,)])
     @pytest.mark.parametrize('lBs', [(0, 1, 3)])
     @pytest.mark.parametrize('num_vecs', [1, 2])
-    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
-    @pytest.mark.parametrize('device', [torch.device('cpu')])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
+    # @pytest.mark.parametrize('device', [torch.device('cpu')])
     # @pytest.mark.parametrize('device', [torch.device('cuda')])
     def test_cgproduct_backward_A(self, lAs, lBs, num_vecs, device):
         A_tnsrs = tuple([torch.randn(2, num_vecs, 2*l+1, 2, device=device) for l in lAs])
@@ -43,9 +43,7 @@ class TestCGProductBackend():
     @pytest.mark.parametrize('lAs', [(0, 1), (2,)])
     @pytest.mark.parametrize('lBs', [(0, 1, 3)])
     @pytest.mark.parametrize('num_vecs', [1, 2])
-    # @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
-    @pytest.mark.parametrize('device', [torch.device('cpu')])
-    # @pytest.mark.parametrize('device', [torch.device('cuda')])
+    @pytest.mark.parametrize('device', [torch.device('cuda'), torch.device('cpu')])
     def test_cgproduct_backward_B(self, lAs, lBs, num_vecs, device):
         A_tnsrs = tuple([torch.randn(2, num_vecs, 2*l+1, 2, device=device) for l in lAs])
         B_tnsrs = tuple([torch.randn(2, num_vecs, 2*l+1, 3, device=device) for l in lBs])
