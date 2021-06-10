@@ -69,6 +69,13 @@ class L1DifferenceLayer(torch.nn.Module):
 class Linear(torch.nn.Module):
     """
     Layer that performs a linear mix
+
+    Parameters
+    ----------
+    transformation_dict : dict
+        Dictionary giving input and output channels for each l.
+        Keys are integers corresponding to value of l, values are 
+        a tuple of (channels_in, channels_out).
     """
     def __init__(self, transformation_dict):
         super(Linear, self).__init__()
