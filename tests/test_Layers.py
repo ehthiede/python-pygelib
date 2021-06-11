@@ -1,5 +1,5 @@
 from pygelib.CG_routines import _raw_cg_product, _compute_output_shape
-from pygelib.Layers import CGProduct, Linear, L1DifferenceLayer, ManyEdgeMPLayer
+from pygelib.Layers import CGProduct, SO3Linear, L1DifferenceLayer, ManyEdgeMPLayer
 from pygelib.utils import _convert_to_SO3part_view
 from pygelib.SO3VecArray import SO3VecArray
 from pygelib.transforms import radial_gaussian
@@ -65,7 +65,7 @@ class TestCGProduct():
             assert(torch.allclose(b_i.grad, b_j.grad))
 
 
-class TestLinear():
+class TestSO3Linear():
     @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
     @pytest.mark.parametrize('nc', [1, 4])
     @pytest.mark.parametrize('nc_out', [1, 4])
@@ -83,7 +83,7 @@ class TestLinear():
         X_rot.rotate(alpha, beta, gamma)
 
         l_dict = {l: (nc, nc_out) for l in ells}
-        lin = Linear(l_dict)
+        lin = SO3Linear(l_dict)
         lin.to(device)
 
         X_out_rot = lin(X)
@@ -156,4 +156,4 @@ class TestManyEdgeMPLayer():
         y_rot = layer(X_rot, edge_vals, edge_idx)
 
         for u_i, v_i in zip(y, y_rot):
-            assert(torch.allclose(u_i, v_i, atol=1e-6))
+            assert(torch.allclose(u_i, v_i, atol=5e-6))

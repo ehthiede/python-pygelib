@@ -17,7 +17,7 @@ class ManyEdgeMPLayer(torch.nn.Module):
         Runs forward pass of the Message passing layer.
 
         Args:
-            x : Input tensor of node features (2 x N x
+            x : 
         """
         out_tensors = []
         for x in X:
@@ -66,7 +66,7 @@ class L1DifferenceLayer(torch.nn.Module):
         return SO3VecArray([pos_to_rep(node_vecs, xyzdim=-2)])
 
 
-class Linear(torch.nn.Module):
+class SO3Linear(torch.nn.Module):
     """
     Layer that performs a linear mix
 
@@ -78,7 +78,7 @@ class Linear(torch.nn.Module):
         a tuple of (channels_in, channels_out).
     """
     def __init__(self, transformation_dict):
-        super(Linear, self).__init__()
+        super(SO3Linear, self).__init__()
 
         self.lin_layers_real = torch.nn.ModuleDict()
         self.lin_layers_imag = torch.nn.ModuleDict()
