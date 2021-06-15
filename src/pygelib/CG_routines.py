@@ -104,6 +104,7 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
         list containing the tensors that make up the product the SO3VecArray containing the result of the CG product
     """
     A_ells = [(a.shape[-2] - 1) // 2 for a in A]
+
     B_ells = [(b.shape[-2] - 1) // 2 for b in B]
 
     if lmax is None:
@@ -118,46 +119,41 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
 
     device = A[0].device
 
-    # Create tensors
+    # Initialize datastructures and move to GElib backend
+    A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
+    B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
+
     def init_fxn(x):
         out = torch.zeros(x, device=device)
         return out
 
-    output_tensors = []
+    out_tensors = []  # Pytorch tensor representation
+    out_parts = []  # Views for GElib back end.
+    out_ells = []
+    for ell, shape in output_shapes.items():
+        if ell > lmax:
+            continue
+        block = _initialize_in_SO3part_view(shape, init_fxn, -2)
+        out_tensors.append(block)
+        out_parts.append(pcpp._internal_SO3partArray_from_Tensor(block[0], block[1]))
+        out_ells.append(ell)
+
     read_ls = []
+    for ell, part_out in zip(out_ells, out_parts):
+        if ell > lmax:
+            continue
 
-    with torch.autograd.profiler.record_function('forward_inner_loop'):
-        for l, shape in output_shapes.items():
-            if l > lmax:
-                continue
+        offset = 0  # Start index of next block
+        for ell_A, part_A_prt in zip(A_ells, A_parts):
+            for ell_B, part_B_prt in zip(B_ells, B_parts):
+                if (ell_A, ell_B, ell) in output_keys.keys():
+                    pcpp.add_in_partArrayCGproduct(part_out, part_A_prt, part_B_prt, offset)
+                    offset += output_keys[(ell_A, ell_B, ell)]
 
-            with torch.autograd.profiler.record_function('initialize_gelib_output'):
-                output_tensor = _initialize_in_SO3part_view(shape, init_fxn, -2)
-            offset = 0  # Start index of next block
-            for part_A in A:
-                l_A = (part_A.shape[-2] - 1) // 2
-                with torch.autograd.profiler.record_function('initialize_gelib_A'):
-                    part_A_prt = pcpp._internal_SO3partArray_from_Tensor(part_A[0], part_A[1])
-                for part_B in B:
-                    l_B = (part_B.shape[-2] - 1) // 2
-                    if (l_A, l_B, l) in output_keys.keys():
-                        with torch.autograd.profiler.record_function('initialize_gelib_B'):
-                            part_B_prt = pcpp._internal_SO3partArray_from_Tensor(part_B[0], part_B[1])
-
-                        block = output_tensor
-                        with torch.autograd.profiler.record_function('initialize_gelib_block'):
-                            block_prt = pcpp._internal_SO3partArray_from_Tensor(block[0], block[1])
-                        with torch.autograd.profiler.record_function('part_product'):
-                            pcpp.add_in_partArrayCGproduct(block_prt, part_A_prt, part_B_prt, offset)
-                        with torch.autograd.profiler.record_function('sum'):
-                            offset += output_keys[(l_A, l_B, l)]
-
-            output_tensors.append(output_tensor)
-            read_ls.append(l)
-    with torch.autograd.profiler.record_function('postprocessing'):
-        idx = np.argsort(read_ls)
-        output_tensors = [output_tensors[i] for i in idx]
-    return tuple(output_tensors)
+        read_ls.append(ell)
+    idx = np.argsort(read_ls)
+    out_tensors = [out_tensors[i] for i in idx]
+    return tuple(out_tensors)
 
 
 def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None):
@@ -331,7 +327,6 @@ def _check_product_is_possible(A, B):
 def _check_multiplyable(A_arr_shape, B_arr_shape):
     assert(A_arr_shape == B_arr_shape), "Tensors in A and B have different array dimensions\
                                          Currently no other options are multiplyable..."
-
 # if l_A + l_B > lmax:
 #     continue
 # if abs(l_A - l_B) < lmin:
