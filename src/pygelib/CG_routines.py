@@ -51,7 +51,6 @@ class _raw_cg_product(Function):
     Backend cg product routine that interfaces with pytorch's autograd.
     """
     @staticmethod
-    # def forward(ctx, A, B, output_info=None, lmin=0, lmax=None):
     def forward(ctx, num_A, output_info, lmin, lmax, *tensors):
         A = tensors[:num_A]
         B = tensors[num_A:]
@@ -103,56 +102,59 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
     product : list of tensors
         list containing the tensors that make up the product the SO3VecArray containing the result of the CG product
     """
-    A_ells = [(a.shape[-2] - 1) // 2 for a in A]
+    with torch.autograd.profiler.record_function('first_half_forward'):
+        A_ells = [(a.shape[-2] - 1) // 2 for a in A]
 
-    B_ells = [(b.shape[-2] - 1) // 2 for b in B]
+        B_ells = [(b.shape[-2] - 1) // 2 for b in B]
 
-    if lmax is None:
-        max_l_A = np.max(A_ells)
-        max_l_B = np.max(B_ells)
-        lmax = max_l_A + max_l_B
+        if lmax is None:
+            max_l_A = np.max(A_ells)
+            max_l_B = np.max(B_ells)
+            lmax = max_l_A + max_l_B
 
-    if output_info is None:
-        output_keys, output_shapes = _compute_output_shape(A, B, lmin, lmax)
-    else:
-        output_keys, output_shapes = output_info
+        if output_info is None:
+            output_keys, output_shapes = _compute_output_shape(A, B, lmin, lmax)
+        else:
+            output_keys, output_shapes = output_info
 
-    device = A[0].device
+        device = A[0].device
 
-    # Initialize datastructures and move to GElib backend
-    A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
-    B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
+    with torch.autograd.profiler.record_function('onep5_half_forward'):
+        # Initialize datastructures and move to GElib backend
+        A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
+        B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
 
-    def init_fxn(x):
-        out = torch.zeros(x, device=device)
-        return out
+        def init_fxn(x):
+            out = torch.zeros(x, device=device)
+            return out
 
-    out_tensors = []  # Pytorch tensor representation
-    out_parts = []  # Views for GElib back end.
-    out_ells = []
-    for ell, shape in output_shapes.items():
-        if ell > lmax:
-            continue
-        block = _initialize_in_SO3part_view(shape, init_fxn, -2)
-        out_tensors.append(block)
-        out_parts.append(pcpp._internal_SO3partArray_from_Tensor(block[0], block[1]))
-        out_ells.append(ell)
+        out_tensors = []  # Pytorch tensor representation
+        out_parts = []  # Views for GElib back end.
+        out_ells = []
+        for ell, shape in output_shapes.items():
+            if ell > lmax:
+                continue
+            block = _initialize_in_SO3part_view(shape, init_fxn, -2)
+            out_tensors.append(block)
+            out_parts.append(pcpp._internal_SO3partArray_from_Tensor(block[0], block[1]))
+            out_ells.append(ell)
 
-    read_ls = []
-    for ell, part_out in zip(out_ells, out_parts):
-        if ell > lmax:
-            continue
+    with torch.autograd.profiler.record_function('second_half_forward'):
+        read_ls = []
+        for ell, part_out in zip(out_ells, out_parts):
+            if ell > lmax:
+                continue
 
-        offset = 0  # Start index of next block
-        for ell_A, part_A_prt in zip(A_ells, A_parts):
-            for ell_B, part_B_prt in zip(B_ells, B_parts):
-                if (ell_A, ell_B, ell) in output_keys.keys():
-                    pcpp.add_in_partArrayCGproduct(part_out, part_A_prt, part_B_prt, offset)
-                    offset += output_keys[(ell_A, ell_B, ell)]
+            offset = 0  # Start index of next block
+            for ell_A, part_A_prt in zip(A_ells, A_parts):
+                for ell_B, part_B_prt in zip(B_ells, B_parts):
+                    if (ell_A, ell_B, ell) in output_keys.keys():
+                        pcpp.add_in_partArrayCGproduct(part_out, part_A_prt, part_B_prt, offset)
+                        offset += output_keys[(ell_A, ell_B, ell)]
 
-        read_ls.append(ell)
-    idx = np.argsort(read_ls)
-    out_tensors = [out_tensors[i] for i in idx]
+            read_ls.append(ell)
+        idx = np.argsort(read_ls)
+        out_tensors = [out_tensors[i] for i in idx]
     return tuple(out_tensors)
 
 
@@ -208,7 +210,7 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
     A_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in A_shapes]
     B_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in B_shapes]
 
-    with torch.autograd.profiler.record_function("forward_inner_loop"):
+    with torch.autograd.profiler.record_function("backward_inner_loop"):
         for k, part_out_grad in enumerate(product_grad):
             l_out = (part_out_grad.shape[-2] - 1) // 2
 
