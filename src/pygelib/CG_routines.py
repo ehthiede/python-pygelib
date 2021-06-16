@@ -210,26 +210,20 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
     A_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in A_shapes]
     B_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in B_shapes]
 
+    # Move everything to SO3partArrays
+    A_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in A]
+    A_grad_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in A_grad_tensors]
+    
+    B_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in B]
+    B_grad_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in B_grad_tensors]
+
     with torch.autograd.profiler.record_function("backward_inner_loop"):
         for k, part_out_grad in enumerate(product_grad):
             l_out = (part_out_grad.shape[-2] - 1) // 2
 
             block_start = 0  # Start index of next block
-            for i, part_A in enumerate(A):
-                l_A = (part_A.shape[-2] - 1) // 2
-
-                # Cast A, A_grad to gelib backend
-                A_i_gelib = pcpp._internal_SO3partArray_from_Tensor(part_A[0], part_A[1])
-                Agt_i = A_grad_tensors[i]
-                A_grad_i_gelib = pcpp._internal_SO3partArray_from_Tensor(Agt_i[0], Agt_i[1])
-
-                for j, part_B in enumerate(B):
-                    l_B = (part_B.shape[-2] - 1) // 2
-
-                    B_j_gelib = pcpp._internal_SO3partArray_from_Tensor(part_B[0], part_B[1])
-                    Bgt_j = B_grad_tensors[j]
-                    B_grad_j_gelib = pcpp._internal_SO3partArray_from_Tensor(Bgt_j[0], Bgt_j[1])
-
+            for i, (l_A, A_i_gelib, A_grad_i_gelib), in enumerate(zip(A_ells, A_parts, A_grad_parts)):
+                for j, (l_B, B_j_gelib, B_grad_j_gelib), in enumerate(zip(B_ells, B_parts, B_grad_parts)):
                     if (l_A, l_B, l_out) in output_keys.keys():
                         block_end = block_start + output_keys[(l_A, l_B, l_out)]
                         grad_block = _convert_to_SO3part_view(part_out_grad[..., block_start:block_end])
