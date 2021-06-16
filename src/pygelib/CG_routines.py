@@ -231,8 +231,9 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
                         # Convert everything to GElib tensors
                         grad_block_gelib = pcpp._internal_SO3partArray_from_Tensor(grad_block[0], grad_block[1])
 
-                        pcpp.add_in_partArrayCGproduct_back0(A_grad_i_gelib, grad_block_gelib, B_j_gelib, 0)
-                        pcpp.add_in_partArrayCGproduct_back1(B_grad_j_gelib, grad_block_gelib, A_i_gelib, 0)
+                        with torch.autograd.profiler.record_function("backward_backend"):
+                            pcpp.add_in_partArrayCGproduct_back0(A_grad_i_gelib, grad_block_gelib, B_j_gelib, 0)
+                            pcpp.add_in_partArrayCGproduct_back1(B_grad_j_gelib, grad_block_gelib, A_i_gelib, 0)
 
                         block_start = block_end
         # return SO3VecArray(A_grad_tensors), SO3VecArray(B_grad_tensors)
