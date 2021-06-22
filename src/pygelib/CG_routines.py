@@ -48,7 +48,6 @@ class _raw_cg_product(Function):
     Backend cg product routine that interfaces with pytorch's autograd.
     """
     @staticmethod
-    # def forward(ctx, A, B, output_info=None, lmin=0, lmax=None):
     def forward(ctx, num_A, output_info, lmin, lmax, *tensors):
         A = tensors[:num_A]
         B = tensors[num_A:]
@@ -62,7 +61,8 @@ class _raw_cg_product(Function):
         ctx.lmin = lmin
         ctx.lmax = lmax
 
-        out = _cg_product_forward(A, B, output_info, lmin, lmax)
+        with torch.autograd.profiler.record_function('_cg_product_forward'):
+            out = _cg_product_forward(A, B, output_info, lmin, lmax)
         return out
 
     @staticmethod
@@ -70,7 +70,8 @@ class _raw_cg_product(Function):
         num_A = ctx.num_A
         A_tensors = ctx.saved_tensors[:num_A]
         B_tensors = ctx.saved_tensors[num_A:]
-        A_grad, B_grad = _cg_product_backward(A_tensors, B_tensors, grad_output, ctx.output_info, ctx.lmin, ctx.lmax)
+        with torch.autograd.profiler.record_function('_cg_product_backward'):
+            A_grad, B_grad = _cg_product_backward(A_tensors, B_tensors, grad_output, ctx.output_info, ctx.lmin, ctx.lmax)
         out_grad = list(A_grad) + list(B_grad)
         return None, None, None, None, *out_grad
 
@@ -99,6 +100,7 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
         list containing the tensors that make up the product the SO3VecArray containing the result of the CG product
     """
     A_ells = [(a.shape[-2] - 1) // 2 for a in A]
+
     B_ells = [(b.shape[-2] - 1) // 2 for b in B]
 
     if lmax is None:
@@ -113,37 +115,41 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
 
     device = A[0].device
 
-    # Create tensors
+    # Initialize datastructures and move to GElib backend
+    A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
+    B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
+
     def init_fxn(x):
         out = torch.zeros(x, device=device)
         return out
 
-    output_tensors = []
+    out_tensors = []  # Pytorch tensor representation
+    out_parts = []  # Views for GElib back end.
+    out_ells = []
+    for ell, shape in output_shapes.items():
+        if ell > lmax:
+            continue
+        block = _initialize_in_SO3part_view(shape, init_fxn, -2)
+        out_tensors.append(block)
+        out_parts.append(pcpp._internal_SO3partArray_from_Tensor(block[0], block[1]))
+        out_ells.append(ell)
+
     read_ls = []
-    for l, shape in output_shapes.items():
-        if l > lmax:
+    for ell, part_out in zip(out_ells, out_parts):
+        if ell > lmax:
             continue
 
-        output_tensor = _initialize_in_SO3part_view(shape, init_fxn, -2)
         offset = 0  # Start index of next block
-        for part_A in A:
-            l_A = (part_A.shape[-2] - 1) // 2
-            part_A_prt = pcpp._internal_SO3partArray_from_Tensor(part_A[0], part_A[1])
-            for part_B in B:
-                l_B = (part_B.shape[-2] - 1) // 2
-                if (l_A, l_B, l) in output_keys.keys():
-                    part_B_prt = pcpp._internal_SO3partArray_from_Tensor(part_B[0], part_B[1])
+        for ell_A, part_A_prt in zip(A_ells, A_parts):
+            for ell_B, part_B_prt in zip(B_ells, B_parts):
+                if (ell_A, ell_B, ell) in output_keys.keys():
+                    pcpp.add_in_partArrayCGproduct(part_out, part_A_prt, part_B_prt, offset)
+                    offset += output_keys[(ell_A, ell_B, ell)]
 
-                    block = output_tensor
-                    block_prt = pcpp._internal_SO3partArray_from_Tensor(block[0], block[1])
-                    pcpp.add_in_partArrayCGproduct(block_prt, part_A_prt, part_B_prt, offset)
-                    offset += output_keys[(l_A, l_B, l)]
-
-        output_tensors.append(output_tensor)
-        read_ls.append(l)
+        read_ls.append(ell)
     idx = np.argsort(read_ls)
-    output_tensors = [output_tensors[i] for i in idx]
-    return tuple(output_tensors)
+    out_tensors = [out_tensors[i] for i in idx]
+    return tuple(out_tensors)
 
 
 def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None):
@@ -198,25 +204,18 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
     A_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in A_shapes]
     B_grad_tensors = [_initialize_in_SO3part_view(shape, init_fxn, -2) for shape in B_shapes]
 
+    # Move everything to SO3partArrays
+    A_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in A]
+    A_grad_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in A_grad_tensors]
+    B_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in B]
+    B_grad_parts = [pcpp._internal_SO3partArray_from_Tensor(p[0], p[1]) for p in B_grad_tensors]
+
     for k, part_out_grad in enumerate(product_grad):
         l_out = (part_out_grad.shape[-2] - 1) // 2
 
         block_start = 0  # Start index of next block
-        for i, part_A in enumerate(A):
-            l_A = (part_A.shape[-2] - 1) // 2
-
-            # Cast A, A_grad to gelib backend
-            A_i_gelib = pcpp._internal_SO3partArray_from_Tensor(part_A[0], part_A[1])
-            Agt_i = A_grad_tensors[i]
-            A_grad_i_gelib = pcpp._internal_SO3partArray_from_Tensor(Agt_i[0], Agt_i[1])
-
-            for j, part_B in enumerate(B):
-                l_B = (part_B.shape[-2] - 1) // 2
-
-                B_j_gelib = pcpp._internal_SO3partArray_from_Tensor(part_B[0], part_B[1])
-                Bgt_j = B_grad_tensors[j]
-                B_grad_j_gelib = pcpp._internal_SO3partArray_from_Tensor(Bgt_j[0], Bgt_j[1])
-
+        for i, (l_A, A_i_gelib, A_grad_i_gelib), in enumerate(zip(A_ells, A_parts, A_grad_parts)):
+            for j, (l_B, B_j_gelib, B_grad_j_gelib), in enumerate(zip(B_ells, B_parts, B_grad_parts)):
                 if (l_A, l_B, l_out) in output_keys.keys():
                     block_end = block_start + output_keys[(l_A, l_B, l_out)]
                     grad_block = _convert_to_SO3part_view(part_out_grad[..., block_start:block_end])
@@ -228,7 +227,7 @@ def _cg_product_backward(A, B, product_grad, output_info=None, lmin=0, lmax=None
                     pcpp.add_in_partArrayCGproduct_back1(B_grad_j_gelib, grad_block_gelib, A_i_gelib, 0)
 
                     block_start = block_end
-        # return SO3VecArray(A_grad_tensors), SO3VecArray(B_grad_tensors)
+    # return SO3VecArray(A_grad_tensors), SO3VecArray(B_grad_tensors)
     return tuple(A_grad_tensors), tuple(B_grad_tensors)
 
 
@@ -316,7 +315,6 @@ def _check_product_is_possible(A, B):
 def _check_multiplyable(A_arr_shape, B_arr_shape):
     assert(A_arr_shape == B_arr_shape), "Tensors in A and B have different array dimensions\
                                          Currently no other options are multiplyable..."
-
 # if l_A + l_B > lmax:
 #     continue
 # if abs(l_A - l_B) < lmin:
