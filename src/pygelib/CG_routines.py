@@ -285,14 +285,12 @@ def _compute_output_shape(A, B, lmin=0, lmax=None):
     total_output_shapes = {}
     for (__, ___, l), nc in output_channels.items():
         if ((l > lmax) or (l < lmin)):
-            break
+            continue
         if l in total_output_shapes.keys():
             total_output_shapes[l][-1] += nc
         else:
             output_shape_l = [2] + list(output_adim) + [nc]
             output_shape_l.insert(-1, 2 * l + 1)
-            # else:
-            #     output_shape_l.insert(B.rdim, 2 * l + 1)
             total_output_shapes[l] = output_shape_l
 
     return output_channels, total_output_shapes

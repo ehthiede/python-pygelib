@@ -92,7 +92,6 @@ class TestSO3Linear():
         X_rot_out = lin(X_rot)
 
         for x, y in zip(X_out_rot, X_rot_out):
-            print(torch.max(torch.abs(x - y)))
             assert(torch.allclose(x, y, atol=1e-6))
 
 
@@ -148,7 +147,7 @@ class TestManyEdgeMPLayer():
         if only_real:
             edge_vals = torch.randn((M, 3), device=device)
         else:
-            edge_vals = torch.randn((2, M, 3), device=device).T
+            edge_vals = torch.randn((2, M, 3), device=device)
 
         y = layer(X, edge_vals, edge_idx)
         y.rotate(alpha, beta, gamma)

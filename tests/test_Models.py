@@ -1,0 +1,63 @@
+import torch
+import pytest
+import numpy as np
+from pygelib.models import basic_cg_model as bcm
+from pygelib.SO3VecArray import SO3VecArray
+
+
+class TestBasicCGModel():
+    @pytest.mark.parametrize('ells', [(0, 1), (2,)])
+    @pytest.mark.parametrize('N', [4, 10])
+    @pytest.mark.parametrize('nc', [2, 4])
+    @pytest.mark.parametrize('nc_out', [2, 4])
+    @pytest.mark.parametrize('only_real', [True, False])
+    @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
+    def test_rotational_equivariance(self, ells, N, nc, nc_out, only_real, device):
+        X = [torch.randn(2, N, 2*l+1, nc, device=device) for l in ells]
+
+        X_rot = [torch.clone(a) for a in X]
+
+        X = SO3VecArray(X)
+        X_rot = SO3VecArray(X_rot)
+
+        alpha, beta, gamma = tuple(np.random.randn(3))
+        X_rot.rotate(alpha, beta, gamma)
+
+        # Build entries of edges
+        edge_indices = []
+        for i in range(N):
+            for j in range(N):
+                if np.random.rand() > 0.5:
+                    edge_indices.append([i, j])
+        edge_idx = torch.tensor(np.array(edge_indices).T).to(device)
+        M = edge_idx.shape[1]
+
+        num_edge_channels = 3
+
+        if only_real:
+            edge_vals = torch.randn((M, num_edge_channels), device=device)
+        else:
+            edge_vals = torch.randn((2, M, num_edge_channels), device=device)
+
+        l_dict = {}
+        for l in range(3):
+            if l in ells:
+                l_dict[l] = (nc, nc_out)
+            else:
+                l_dict[l] = (0, nc_out)
+
+        for l in range(3, 5):
+            if l in ells:
+                l_dict[l] = (nc, 0)
+
+        block = bcm.CGMPBlock(l_dict, num_edge_channels, real_edges=only_real)
+        block.to(device)
+
+        X_out_rot = block(X, edge_vals, edge_idx)
+        X_out_rot.rotate(alpha, beta, gamma)
+
+        X_rot_out = block(X_rot, edge_vals, edge_idx)
+
+        for x, y in zip(X_out_rot, X_rot_out):
+            print(torch.max(torch.abs(x - y)))
+            assert(torch.allclose(x, y, atol=5e-5))
