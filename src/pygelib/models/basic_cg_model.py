@@ -1,7 +1,39 @@
 import torch
-from pygelib_cpp import estimate_num_products
 import numpy as np
+from torch_scatter import scatter
+from pygelib_cpp import estimate_num_products
 from pygelib.Layers import SO3Linear, ManyEdgeMPLayer, L1DifferenceLayer, CGProduct
+from pygelib.transforms import radial_gaussian
+
+
+class CGMPModel(torch.nn.Module):
+    def __init__(self, nc_in: int, n_channels: int, n_layers: int, lmax: int, r0s: torch.Tensor):
+        super(CGMPModel, self).__init__()
+        num_edge_channels = len(r0s)
+        self.initial_layer = L1DifferenceLayer(radial_gaussian, r0s=r0s, alpha=0.0)
+        self.initial_lin_layer = SO3Linear({1: (nc_in * num_edge_channels, n_channels)})
+        self.final_lin_layer = SO3Linear({0: (n_channels, 1)})
+
+        self.cg_mp_blocks = torch.nn.ModuleList()
+        lm = min(lmax, 2)
+        for i in range(n_layers):
+            transformation_dict = {k: (n_channels, n_channels) for k in range(lm)}
+            block = CGMPBlock(transformation_dict, num_edge_channels, real_edges=True)
+            self.cg_mp_blocks.append(block)
+            lm = min(lmax, lm**2)
+
+    def forward(self, data):
+        x = data['x']
+        edge_vals = data['edge_attr']
+        edge_idx = data['edge_attr']
+        x = self.initial_layer(data['pos'], x, edge_idx)
+        x = self.initial_lin_layer(x)
+        for layer in self.cg_mp_blocks:
+            x = layer(x, edge_vals, edge_idx)
+        x = self.final_lin_layer(x)[0]
+        x = x.unsqueeze(-2).unsqueeze(-1) # Remove unnecessary channels
+        x = scatter(x, data['batch'], dim=0, reduce='mean')
+        return x.unsqueeze(-2).unsqueeze(-1)
 
 
 class CGMPBlock(torch.nn.Module):
