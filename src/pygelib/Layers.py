@@ -17,7 +17,7 @@ class ManyEdgeMPLayer(torch.nn.Module):
         Runs forward pass of the Message passing layer.
 
         Args:
-            x : 
+            x :
         """
         out_tensors = []
         for x in X:
@@ -34,19 +34,22 @@ class ManyEdgeMPLayer(torch.nn.Module):
 
 class L1DifferenceLayer(torch.nn.Module):
     """
-    Builds some initial L1 features.
+    Builds some initial l=0 features
     """
+
     def __init__(self, basis_fxn, remove_self_loops=True, **kwargs):
         super(L1DifferenceLayer, self).__init__()
         self.bf_args = kwargs
         self.bf_fxn = basis_fxn
         self.remove_self_loops = remove_self_loops
+        self.expand_node_feats = ExpandNodeLayer()
 
     def forward(self, pos, node_features, edge_idx):
         """
         Constructs initial l=1 features from invariants and positions
         """
         # Evaluate basis functions.
+        N = len(pos)
         if self.remove_self_loops:
             edge_idx, __ = utils._prune_self_loops(edge_idx)
         displacement = pos[edge_idx[1]] - pos[edge_idx[0]]  # M (num edges) x 3
@@ -57,13 +60,37 @@ class L1DifferenceLayer(torch.nn.Module):
         bf_vecs = bf_vecs.unsqueeze(-1) * bf_values.unsqueeze(-2)  # M x 3 x C
 
         # Multiply by Node Features
+        
         nf_edge = node_features[edge_idx[1]]  # M x D
         bf_vecs = bf_vecs.unsqueeze(-1) * nf_edge.unsqueeze(-2).unsqueeze(-2)
         bf_vecs = torch.flatten(bf_vecs, start_dim=-2)  # M x 3 x (D*C)
-
+        
         # Scatter back to individual nodes and convert to spherical tensor.
-        node_vecs = scatter(bf_vecs, edge_idx[0], dim=0)
-        return SO3VecArray([pos_to_rep(node_vecs, xyzdim=-2)])
+        node_vecs = scatter(bf_vecs, edge_idx[0], dim=0, dim_size=N)
+        node_vecs = pos_to_rep(node_vecs, xyzdim=-2)
+
+        # Build some node features
+        scalar_node_feats = self.expand_node_feats(node_features)
+        scalar_node_feats = scalar_node_feats[0]
+
+        return SO3VecArray([scalar_node_feats, node_vecs])
+
+
+class ExpandNodeLayer(torch.nn.Module):
+    """
+    Expands Node features into an l=0 feature
+    """
+
+    def __init__(self, is_complex: bool = False):
+        super(ExpandNodeLayer, self).__init__()
+        self.is_complex = is_complex
+
+    def forward(self, node_features):
+        if not self.is_complex:
+            nf_imag = torch.zeros_like(node_features)
+            node_features = torch.stack([node_features, nf_imag], dim=0)
+        node_features = node_features.unsqueeze(-2)
+        return SO3VecArray([node_features])
 
 
 class SO3Linear(torch.nn.Module):
@@ -74,9 +101,10 @@ class SO3Linear(torch.nn.Module):
     ----------
     transformation_dict : dict
         Dictionary giving input and output channels for each l.
-        Keys are integers corresponding to value of l, values are 
+        Keys are integers corresponding to value of l, values are
         a tuple of (channels_in, channels_out).
     """
+
     def __init__(self, transformation_dict):
         super(SO3Linear, self).__init__()
 
@@ -115,6 +143,7 @@ class CGProduct(torch.nn.Module):
     """
     Layer that performs the CG product nonlinearity on two SO3VecArray
     """
+
     def __init__(self, output_info=None, lmin=0, lmax=None):
         super(CGProduct, self).__init__()
         self.output_info = output_info

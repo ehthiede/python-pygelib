@@ -7,33 +7,46 @@ from pygelib.transforms import radial_gaussian
 
 
 class CGMPModel(torch.nn.Module):
-    def __init__(self, nc_in: int, n_channels: int, n_layers: int, lmax: int, r0s: torch.Tensor):
+    def __init__(self, nc_in_node: int, nc_edge: int, n_channels: int, n_layers: int, lmax: int, r0s: torch.Tensor):
         super(CGMPModel, self).__init__()
-        num_edge_channels = len(r0s)
         self.initial_layer = L1DifferenceLayer(radial_gaussian, r0s=r0s, alpha=0.0)
-        self.initial_lin_layer = SO3Linear({1: (nc_in * num_edge_channels, n_channels)})
-        self.final_lin_layer = SO3Linear({0: (n_channels, 1)})
+        self.initial_lin_layer = SO3Linear({0: (nc_in_node, n_channels), 1: (nc_in_node * len(r0s), n_channels)})
 
         self.cg_mp_blocks = torch.nn.ModuleList()
-        lm = min(lmax, 2)
-        for i in range(n_layers):
-            transformation_dict = {k: (n_channels, n_channels) for k in range(lm)}
-            block = CGMPBlock(transformation_dict, num_edge_channels, real_edges=True)
+
+        lm = min(lmax, 1)
+        for i in range(n_layers-2):
+            transformation_dict = {k: (n_channels, n_channels) for k in range(lm+1)}
+            lm_new = min(lmax, 2 * lm)
+            new_channels = {k: (0, n_channels) for k in range(lm+1, lm_new+1)}
+            transformation_dict.update(new_channels)
+            block = CGMPBlock(transformation_dict, nc_edge, real_edges=True)
             self.cg_mp_blocks.append(block)
-            lm = min(lmax, lm**2)
+            lm = lm_new
+        transformation_dict = {0: (n_channels, n_channels)}
+        transformation_dict.update({i: (n_channels, 0) for i in range(1, lm+1)})
+        final_block = CGMPBlock(transformation_dict, nc_edge, real_edges=True)
+        self.cg_mp_blocks.append(final_block)
+
+        self.final_lin = torch.nn.Linear(2 * n_channels, 1, bias=False)
 
     def forward(self, data):
         x = data['x']
         edge_vals = data['edge_attr']
-        edge_idx = data['edge_attr']
+        edge_idx = data['edge_idx']
         x = self.initial_layer(data['pos'], x, edge_idx)
         x = self.initial_lin_layer(x)
         for layer in self.cg_mp_blocks:
             x = layer(x, edge_vals, edge_idx)
-        x = self.final_lin_layer(x)[0]
-        x = x.unsqueeze(-2).unsqueeze(-1) # Remove unnecessary channels
+        # x = self.final_lin_layer(x)[0]
+        x = x[0].squeeze(-2).squeeze(-1)  # Remove unnecessary channels
+        x = torch.cat([x[0], x[1]], dim=-1) # Move real, imaginary to channel indices
+        x = self.final_lin(x).squeeze(-1)
+
         x = scatter(x, data['batch'], dim=0, reduce='mean')
-        return x.unsqueeze(-2).unsqueeze(-1)
+
+        # Concatenate real and imaginary and mix.
+        return x
 
 
 class CGMPBlock(torch.nn.Module):
@@ -49,22 +62,27 @@ class CGMPBlock(torch.nn.Module):
         super(CGMPBlock, self).__init__()
 
         # construct linear transformation_sizes
-        lmin = min(list(transformation_dict.keys()))
-        lmax = max(list(transformation_dict.keys()))
-        input_ls = np.zeros(lmax + 1, dtype=int)
+        output_ls = [k for k, v in transformation_dict.items() if v[1] > 0]
+        lmax_in = max(list(transformation_dict.keys()))
+        lmin = min(output_ls)
+        lmax = max(output_ls)
+        input_ls = np.zeros(lmax_in + 1, dtype=int)
         # Determine size of product
         for l, (nc_in, __) in transformation_dict.items():
+        # for l in output_ls:
             input_ls[l] = nc_in
         xx_product_ells = estimate_num_products(input_ls, input_ls)
         yx_product_ells = estimate_num_products(num_edge_channels * input_ls, input_ls)
         yy_product_ells = estimate_num_products(num_edge_channels * input_ls,
                                                 num_edge_channels * input_ls)
+        self.transformation_dict = transformation_dict
 
         # Construct input and output sizes required for the linear layer.
         xx_linear_dict = {}
         yx_linear_dict = {}
         yy_linear_dict = {}
-        for l, (__, nc_out) in transformation_dict.items():
+        for l in output_ls:
+            nc_out = transformation_dict[l][1]
             nc_prod = xx_product_ells[l]
             if nc_prod == 0:
                 raise Exception("Trying to construct output feature with no ell's from CG product!")
