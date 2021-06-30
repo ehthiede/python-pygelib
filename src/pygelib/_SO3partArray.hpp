@@ -49,72 +49,6 @@ SO3partArray SO3partArrayFromTensor(const torch::Tensor& x_real, const torch::Te
 }
 
 
-pair<torch::Tensor, torch::Tensor> MoveSO3partArrayToTensor(SO3partArray& partarray){
-    Gdims adms = partarray.adims;
-    Gdims cdms = partarray.cdims;
-
-    int num_adms = adms.size();
-    int num_cdms = cdms.size();
-
-    // vector<int64_t> v(num_adms + num_cdms);
-    // for(int i=0; i<num_adms; i++)
-    //     v[i]=adms[i];
-
-    // for(int i=0; i<num_cdms; i++)
-    //     v[i+num_adms]=cdms[i];
-
-    vector<int64_t> v(num_adms + 1);
-    for(int i=0; i<num_adms; i++)
-        v[i]=adms[i];
-
-    float flattened_cdm = 1;
-    for(int i=0; i<num_cdms; i++)
-        flattened_cdm *= float(cdms[i]);
-        /* v[i+num_adms]=cdms[i]; */
-
-    v[num_adms] = 32 * int(ceil(flattened_cdm / 32));
-
-
-    torch::Tensor output_real;
-    torch::Tensor output_imag;
-
-    if(partarray.dev == 0){
-        auto options =
-            torch::TensorOptions()
-                .dtype(torch::kFloat32)
-                .layout(torch::kStrided)
-                .device(torch::kCPU)
-                .requires_grad(false);
-
-        output_real = torch::from_blob(partarray.arr, v, options);
-        output_imag = torch::from_blob(partarray.arrc, v, options);
-        partarray.arr = nullptr;
-        partarray.arrc = nullptr;
-    }
-    else{
-        auto options =
-            torch::TensorOptions()
-                .dtype(torch::kFloat32)
-                .layout(torch::kStrided)
-                .device(torch::kCUDA)
-                /* .device(torch::kCPU) */
-                .requires_grad(false);
-
-
-        output_real = torch::from_blob(partarray.arrg, v, options);
-
-        output_imag = torch::from_blob(partarray.arrgc, v, options);
-        partarray.arrg = nullptr;
-        partarray.arrgc = nullptr;
-        /* abalaaba; */
-
-    }
-
-    /* torch::Tensor output = torch::randn(v, options); */
-    pair<torch::Tensor, torch::Tensor> output(output_real, output_imag);
-    return output;
-}
-
 // Utility functions for introspecting SO3partArrays
 inline vector<int64_t> get_shape(const SO3partArray& x){
     int num_cdms = x.cdims.size();
@@ -144,34 +78,12 @@ inline void add_in_partArrayCGproduct(SO3partArray& output, const SO3partArray& 
 
 inline void add_in_partArrayCGproduct_back0(SO3partArray& output, const SO3partArray& dy, const SO3partArray& b, const int offset){
     int l = output.getl();
-    /* cout << "output:" << output.str("") << endl; */
-    /* cout << "dy:" << dy.str("") << endl; */
-    /* cout << "b:" << b.str("") << endl; */
-    /* cout << "offset:" << offset << endl; */
     add_cellwise<SO3part_CGproduct_back0>(output, dy, b, offset);
 }
 
 inline void add_in_partArrayCGproduct_back1(SO3partArray& output, const SO3partArray& dy, const SO3partArray& a, const int offset){
     int l = output.getl();
-    /* cout << "output:" << output.str("") << endl; */
-    /* cout << "dy:" << dy.str("") << endl; */
-    /* cout << "a:" << a.str("") << endl; */
-    /* cout << "offset:" << offset << endl; */
     add_cellwise<SO3part_CGproduct_back1>(output, dy, a, offset);
-}
-
-inline void test_partArrayCGproduct_back0(){
-    SO3partArray output({2}, 0, 2, fill::zero, 1);
-    SO3partArray dy({2}, 0, 6, fill::ones, 1);
-    SO3partArray b({2}, 0, 3, fill::gaussian, 1);
-    int offset = 0;
-    /* cout << "output:" << output.str("") << endl; */
-    /* cout << "dy:" << dy.str("") << endl; */
-    /* cout << "b:" << b.str("") << endl; */
-    /* cout << "offset:" << offset << endl; */
-    /* cout << "Starting product......" << endl; */
-    add_cellwise<SO3part_CGproduct_back0>(output, dy, b, offset);
-    /* cout << "Post call:" << endl; */
 }
 
 inline vector<int> estimate_num_products(const vector<int>& types_one, const vector<int>& types_two){
@@ -202,6 +114,35 @@ void sampleprint(){
 
 inline void sum_SO3partArrays_inplace(SO3partArray& x, const SO3partArray& y){
     x += y;
+}
+
+void TestGelibPtrs(vector<torch::Tensor>& x_real, vector<torch::Tensor>& x_imag,
+                   vector<torch::Tensor>& y_real, vector<torch::Tensor>& y_imag){
+    int num_xs = x_real.size();
+    int num_ys = y_real.size();
+
+    /* SO3partArray* x_parts[num_xs]; */
+    /* SO3partArray* y_parts[num_ys]; */
+    vector<SO3partArray*> x_parts;
+    vector<SO3partArray*> y_parts;
+
+    for (int i=0; i< num_xs; i++){
+        SO3partArray* temp = SO3partArrayFromTensor(x_real[i], x_imag[i]);
+        x_parts.push_back(temp);
+    }
+
+    /* for (int i=0; i< num_ys; i++) */
+    /*     y_parts.push_back(SO3partArrayFromTensor(y_real[i], y_imag[i])); */
+    /*     /1* y_parts[i] = SO3partArrayFromTensor(y_real[i], y_imag[i]); *1/ */
+    
+    /* cout << "_______" << endl; */
+    /* for(int i=0; i < num_xs; i++){ */
+    /*     SO3partArray x_i(*x_parts[i]); */
+    /*     SO3partArray y_i(*y_parts[i]); */
+    /*     x_i  += y_i; */
+    /*     cout << x_i << x_parts[i] << endl; */
+    /* } */
+    
 }
 
 

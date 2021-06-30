@@ -51,7 +51,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   /* m.def("_internal_SO3partArray_from_Tensor", &SO3partArrayFromTensor, "Constructs a GElib SO3partArray from a pytorch Tensor. Does NOT account for padding."); */
   m.def("_internal_SO3partArray_from_Tensor", &SO3partArrayFromTensor, py::return_value_policy::move);
-  m.def("_internal_Tensor_from_SO3partArray", &MoveSO3partArrayToTensor, "Constructs a tensor from a GElib SO3partArray. Does NOT account for padding.");
+  /* m.def("_internal_Tensor_from_SO3partArray", &MoveSO3partArrayToTensor, "Constructs a tensor from a GElib SO3partArray. Does NOT account for padding."); */
   m.def("_sampleprint_test", &sampleprint, "Testing method that constructs and prints an SO3partArray of ones on CPU and GPU.");
   m.def("sum_SO3partArrays_inplace", &sum_SO3partArrays_inplace, "Sum two SO3 part arrays in place");
   m.def("partArrayCGproduct", &partArrayCGproduct, "Performs a CG product of two parts");
@@ -66,7 +66,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   // Some testing routines
   /* m.def("test_conversion", &test_conversion, "sum tensors in place"); */
-  /* m.def("get_SO3partArray_pointers", &get_SO3partArray_pointers); */
+  m.def("TestGelibPtrs", &TestGelibPtrs);
   m.def("get_num_channels", &get_num_channels);
   m.def("estimate_num_products", &estimate_num_products);
 }
