@@ -58,7 +58,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("add_in_partArrayCGproduct", &add_in_partArrayCGproduct, "Construct and print an SO3partArray");
   m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray");
   m.def("add_in_partArrayCGproduct_back1", &add_in_partArrayCGproduct_back1, "Construct and print an SO3partArray");
-  m.def("test_partArrayCGproduct_back0", &test_partArrayCGproduct_back0, "Construct and print an SO3partArray");
+  /* m.def("test_partArrayCGproduct_back0", &test_partArrayCGproduct_back0, "Construct and print an SO3partArray"); */
   /* m.def("rotate_SO3partArray", &rotate_SO3partArray, "Rotate an SO3partArray"); */
 
   /* m.def("add_in_partArrayCGproduct_back0", &add_in_partArrayCGproduct_back0, "Construct and print an SO3partArray"); */
@@ -66,7 +66,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   // Some testing routines
   /* m.def("test_conversion", &test_conversion, "sum tensors in place"); */
-  m.def("TestGelibPtrs", &TestGelibPtrs);
+  m.def("testGelibPtrs", &testGelibPtrs, "check pointers");
+  m.def("joinedCGRoutine", &joinedCGRoutine, "check pointers");
   m.def("get_num_channels", &get_num_channels);
   m.def("estimate_num_products", &estimate_num_products);
 }

@@ -116,20 +116,81 @@ inline void sum_SO3partArrays_inplace(SO3partArray& x, const SO3partArray& y){
     x += y;
 }
 
-void TestGelibPtrs(vector<torch::Tensor>& x_real, vector<torch::Tensor>& x_imag,
-                   vector<torch::Tensor>& y_real, vector<torch::Tensor>& y_imag){
+
+/* void joinedCGRoutine(vector<torch::Tensor> x_real, vector<torch::Tensor> x_imag, */
+/*                      vector<torch::Tensor> y_real, vector<torch::Tensor> y_imag, */
+/*                      vector<torch::Tensor> out_real, vector<torch::Tensor> out_imag){ */
+void joinedCGRoutine(vector<torch::Tensor> x,
+                     vector<torch::Tensor> y,
+                     vector<torch::Tensor> out){
+    int num_xs = x.size();
+    int num_ys = y.size();
+    int num_outs = out.size();
+
+    /* cout << x[0].index({0}) << endl; */
+    /* cout << x[0].index({1}) << endl; */
+    
+    /* for (int i=0; i< num_xs; i++){ */
+    for (auto xi: x){
+        SO3partArrayFromTensor(xi.index({0}), xi.index({1}));
+    }
+
+    for (auto yi: y){
+        SO3partArrayFromTensor(yi.index({0}), yi.index({1}));
+    }
+
+    for (auto out_i: out){
+        SO3partArrayFromTensor(out_i.index({0}), out_i.index({1}));
+    }
+    
+    /* for (int i=0; i< num_ys; i++){ */
+    /*     SO3partArrayFromTensor(y_real[i], y_imag[i]); */
+    /* } */
+    
+    /* for (int i=0; i< num_outs; i++){ */
+    /*     SO3partArrayFromTensor(out_real[i], out_imag[i]); */
+    /* } */
+
+}
+
+
+void testGelibPtrs(vector<torch::Tensor> x_real, vector<torch::Tensor> x_imag,
+                   vector<torch::Tensor> y_real, vector<torch::Tensor> y_imag,
+                   vector<torch::Tensor> out_real, vector<torch::Tensor> out_imag){
     int num_xs = x_real.size();
     int num_ys = y_real.size();
 
-    /* SO3partArray* x_parts[num_xs]; */
-    /* SO3partArray* y_parts[num_ys]; */
     vector<SO3partArray*> x_parts;
-    vector<SO3partArray*> y_parts;
+    /* vector<SO3partArray*> y_parts; */
 
+    /* for (int i=0; i< num_xs; i++){ */
+    /*     SO3partArray* temp = SO3partArrayFromTensor(x_real[i], x_imag[i]); */
+    /*     x_parts.push_back(temp); */
+    /* } */
+
+    /* vector<SO3partArray*> x_parts = {}; */
     for (int i=0; i< num_xs; i++){
-        SO3partArray* temp = SO3partArrayFromTensor(x_real[i], x_imag[i]);
-        x_parts.push_back(temp);
+        cout << "-------------__" << endl;
+        SO3partArray temp(SO3partArrayFromTensor(x_real[i], x_imag[i]));
+        SO3partArray temp2(SO3partArrayFromTensor(y_real[i], y_imag[i]));
+        SO3partArray* temp_ptr = &temp;
+        /* add_cellwise<SO3part_CGproduct>(output, x, y, offset); */
+        cout << "i" << endl;
+        x_parts.push_back(temp_ptr);
+        
     }
+    cout << "!!!!!!!!!!!!!!" << endl; 
+    for (int i=0; i< num_xs; i++){
+        cout << *x_parts[i] << endl;
+    }
+    /* for (int i=0; i< num_xs; i++){ */
+    /*     SO3partArrayFromTensor(y_real[i], y_imag[i]); */
+    /* } */
+    
+    /* for (int i=0; i< num_xs; i++){ */
+    /*     SO3partArrayFromTensor(out_real[i], out_imag[i]); */
+    /* } */
+
 
     /* for (int i=0; i< num_ys; i++) */
     /*     y_parts.push_back(SO3partArrayFromTensor(y_real[i], y_imag[i])); */

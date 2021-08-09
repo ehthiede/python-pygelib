@@ -116,24 +116,31 @@ def _cg_product_forward(A, B, output_info=None, lmin=0, lmax=None):
     device = A[0].device
 
     # Initialize datastructures and move to GElib backend
-    A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
-    B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
 
     def init_fxn(x):
         out = torch.zeros(x, device=device)
         return out
 
     out_tensors = []  # Pytorch tensor representation
-    out_parts = []  # Views for GElib back end.
     out_ells = []
     for ell, shape in output_shapes.items():
         if ell > lmax:
             continue
         block = _initialize_in_SO3part_view(shape, init_fxn, -2)
         out_tensors.append(block)
-        out_parts.append(pcpp._internal_SO3partArray_from_Tensor(block[0], block[1]))
         out_ells.append(ell)
 
+    with torch.autograd.profiler.record_function('python_gelib_conversion'):
+        A_parts = [pcpp._internal_SO3partArray_from_Tensor(pA[0], pA[1]) for pA in A]
+        B_parts = [pcpp._internal_SO3partArray_from_Tensor(pB[0], pB[1]) for pB in B]
+        out_parts = [pcpp._internal_SO3partArray_from_Tensor(pOut[0], pOut[1]) for pOut in out_tensors]
+    # print("A vals:")
+    # print(A[0][0], A[0][1])
+    with torch.autograd.profiler.record_function('_cpp_test'):
+        # ys_temp_imag = [pB[1] for pB in B]
+        # out_temp_real = [p_out_tensors[0] for p_out_tensors in out_tensors]
+        # out_temp_imag = [p_out_tensors[1] for p_out_tensors in out_tensors]
+        pcpp.joinedCGRoutine(A, B, out_tensors)
     read_ls = []
     for ell, part_out in zip(out_ells, out_parts):
         if ell > lmax:
