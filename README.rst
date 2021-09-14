@@ -2,73 +2,18 @@
 Overview
 ========
 
-.. start-badges
-
-.. list-table::
-    :stub-columns: 1
-
-    * - docs
-      - |docs|
-    * - tests
-      - |
-        |
-    * - package
-      - | |commits-since|
-.. |docs| image:: https://readthedocs.org/projects/python-pygelib/badge/?style=flat
-    :target: https://readthedocs.org/projects/python-pygelib
-    :alt: Documentation Status
-
-.. |commits-since| image:: https://img.shields.io/github/commits-since/ehthiede/python-pygelib/v0.0.0.svg
-    :alt: Commits since latest release
-    :target: https://github.com/ehthiede/python-pygelib/compare/v0.0.0...master
-
-
-
-.. end-badges
-
-Python interface to GElib
+Python interface to GElib.  The code is largely in alpha, and is very much a work in practice.  Expect broken things and rough edges.
 
 * Free software: MIT license
 
 Installation
 ============
 
+
+Clone the repo and run
+
 ::
 
-    pip install pygelib
+    pip install -e .
 
-You can also install the in-development version with::
-
-    pip install https://github.com/ehthiede/python-pygelib/archive/master.zip
-
-
-Documentation
-=============
-
-
-https://python-pygelib.readthedocs.io/
-
-
-Development
-===========
-
-To run all the tests run::
-
-    tox
-
-Note, to combine the coverage data from all the tox environments run:
-
-.. list-table::
-    :widths: 10 90
-    :stub-columns: 1
-
-    - - Windows
-      - ::
-
-            set PYTEST_ADDOPTS=--cov-append
-            tox
-
-    - - Other
-      - ::
-
-            PYTEST_ADDOPTS=--cov-append tox
+in the root directory.
